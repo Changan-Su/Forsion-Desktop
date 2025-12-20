@@ -1,6 +1,18 @@
 
 export type AppId = 'knowledge' | 'calendar' | 'workspace' | 'recipe' | 'studio' | 'settings' | 'notes';
 
+export interface Theme {
+  id: string;
+  name: string;
+  background: string;
+  primary: string;
+  secondary: string;
+  surface: string;
+  text: string;
+  isDark: boolean;
+  wallpaper?: string;
+}
+
 export interface WindowState {
   id: string;
   appId: AppId;

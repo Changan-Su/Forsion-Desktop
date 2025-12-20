@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Clock, Zap, Inbox, Sun } from 'lucide-react';
+import { Zap, Inbox, Sun } from 'lucide-react';
 
 export const WidgetBoard: React.FC = () => {
   return (
@@ -12,21 +12,21 @@ export const WidgetBoard: React.FC = () => {
         animate={{ x: 0, opacity: 1 }}
         className="pointer-events-auto glass-dark p-5 rounded-3xl space-y-3"
       >
-        <div className="flex justify-between items-center text-slate-500">
+        <div className="flex justify-between items-center opacity-50">
           <Sun size={18} />
           <span className="text-xs font-bold uppercase tracking-widest">Horizon</span>
         </div>
         <div>
-          <h4 className="text-3xl font-light text-[#2D2E4A]">Nov 14</h4>
-          <p className="text-sm text-slate-500">A calm tide ahead</p>
+          <h4 className="text-3xl font-light text-surface-text">Nov 14</h4>
+          <p className="text-sm opacity-60">A calm tide ahead</p>
         </div>
         <div className="pt-2">
-          <div className="flex items-center space-x-2 text-xs text-slate-600 mb-2">
-            <div className="w-1.5 h-1.5 bg-[#3E406F] rounded-full" />
+          <div className="flex items-center space-x-2 text-xs opacity-70 mb-2">
+            <div className="w-1.5 h-1.5 bg-accent rounded-full" />
             <span>9:00 AM - Deep Work</span>
           </div>
-          <div className="flex items-center space-x-2 text-xs text-slate-600">
-            <div className="w-1.5 h-1.5 bg-[#C1A3B5] rounded-full" />
+          <div className="flex items-center space-x-2 text-xs opacity-70">
+            <div className="w-1.5 h-1.5 bg-accent opacity-50 rounded-full" />
             <span>1:30 PM - Creative Drift</span>
           </div>
         </div>
@@ -39,20 +39,20 @@ export const WidgetBoard: React.FC = () => {
         transition={{ delay: 0.1 }}
         className="pointer-events-auto glass-dark p-5 rounded-3xl bg-white/20"
       >
-        <div className="flex justify-between items-center text-[#3E406F]">
+        <div className="flex justify-between items-center text-accent">
           <Zap size={18} />
           <span className="text-xs font-bold uppercase tracking-widest">Stillness</span>
         </div>
         <div className="flex items-center justify-center py-4">
           <div className="relative w-24 h-24 flex items-center justify-center">
             <svg className="absolute inset-0 w-full h-full -rotate-90">
-              <circle cx="48" cy="48" r="44" fill="none" stroke="currentColor" strokeWidth="4" className="text-slate-200" />
-              <circle cx="48" cy="48" r="44" fill="none" stroke="currentColor" strokeWidth="4" strokeDasharray="276" strokeDashoffset="70" className="text-[#3E406F]" />
+              <circle cx="48" cy="48" r="44" fill="none" stroke="currentColor" strokeWidth="4" className="opacity-10" />
+              <circle cx="48" cy="48" r="44" fill="none" stroke="currentColor" strokeWidth="4" strokeDasharray="276" strokeDashoffset="70" className="text-accent" />
             </svg>
-            <span className="text-xl font-bold text-[#2D2E4A]">25:00</span>
+            <span className="text-xl font-bold text-surface-text">25:00</span>
           </div>
         </div>
-        <button className="w-full py-2 bg-[#3E406F] text-white rounded-xl text-xs font-bold hover:bg-[#2D2E4A] transition-colors shadow-sm">FOCUS</button>
+        <button className="w-full py-2 bg-accent text-white rounded-xl text-xs font-bold hover:brightness-110 transition-all shadow-sm">FOCUS</button>
       </motion.div>
 
       {/* Inbox Widget */}
@@ -62,7 +62,7 @@ export const WidgetBoard: React.FC = () => {
         transition={{ delay: 0.2 }}
         className="pointer-events-auto glass-dark p-5 rounded-3xl"
       >
-        <div className="flex justify-between items-center text-slate-500">
+        <div className="flex justify-between items-center opacity-50">
           <Inbox size={18} />
           <span className="text-xs font-bold uppercase tracking-widest">Messages</span>
         </div>
@@ -71,9 +71,9 @@ export const WidgetBoard: React.FC = () => {
             { from: 'Studio', msg: 'New harmony draft' },
             { from: 'Ocean', msg: 'The tide is rising' },
           ].map((item, i) => (
-            <div key={i} className="bg-white/40 p-2 rounded-xl border border-white/60 cursor-pointer hover:bg-white/60 transition-colors">
-              <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">{item.from}</div>
-              <div className="text-xs text-slate-700">{item.msg}</div>
+            <div key={i} className="bg-white/20 p-2 rounded-xl border border-white/20 cursor-pointer hover:bg-white/30 transition-colors">
+              <div className="text-[10px] font-bold opacity-40 uppercase mb-0.5">{item.from}</div>
+              <div className="text-xs text-surface-text">{item.msg}</div>
             </div>
           ))}
         </div>

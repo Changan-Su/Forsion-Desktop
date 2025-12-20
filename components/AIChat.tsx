@@ -49,11 +49,7 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose }) => {
           y: isOpen ? 0 : 180 
         }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="w-full max-w-[680px] rounded-[32px] flex flex-col overflow-hidden shadow-[0_32px_80px_-20px_rgba(62,64,111,0.2)] border border-white/40 pointer-events-auto"
-        style={{ 
-          backgroundColor: 'rgba(255, 255, 255, 0.4)',
-          backdropFilter: 'blur(50px) saturate(160%)'
-        }}
+        className="w-full max-w-[680px] rounded-[32px] flex flex-col overflow-hidden shadow-[0_32px_80px_-20px_rgba(0,0,0,0.2)] border border-white/40 pointer-events-auto glass-dark"
       >
         <AnimatePresence>
           {isOpen && (
@@ -66,14 +62,14 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose }) => {
               {/* Header */}
               <div className="p-5 bg-white/20 flex items-center justify-between border-b border-white/30">
                 <div className="flex items-center space-x-3">
-                  <div className="w-9 h-9 rounded-2xl bg-[#3E406F] flex items-center justify-center text-white shadow-md">
+                  <div className="w-9 h-9 rounded-2xl bg-accent flex items-center justify-center text-white shadow-md">
                     <Sparkles size={18} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-[#2D2E4A]">Forsion Studio AI</h3>
+                    <h3 className="text-sm font-bold text-surface-text">Forsion Studio AI</h3>
                     <div className="flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 bg-[#C1A3B5] rounded-full animate-pulse" />
-                      <span className="text-[10px] text-slate-500 font-medium tracking-wide">INSPIRED BY MONET</span>
+                      <div className="w-1.5 h-1.5 bg-accent opacity-60 rounded-full animate-pulse" />
+                      <span className="text-[10px] text-surface-text opacity-50 font-medium tracking-wide">INSPIRED BY ART</span>
                     </div>
                   </div>
                 </div>
@@ -91,8 +87,8 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose }) => {
                   <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[85%] p-4 rounded-[22px] text-[15px] leading-relaxed shadow-sm ${
                       m.role === 'user' 
-                        ? 'bg-[#3E406F] text-white rounded-tr-none font-medium' 
-                        : 'bg-white/60 text-slate-800 rounded-tl-none border border-white/50'
+                        ? 'bg-accent text-white rounded-tr-none font-medium' 
+                        : 'bg-white/60 text-surface-text rounded-tl-none border border-white/50'
                     }`}>
                       {m.content}
                     </div>
@@ -101,9 +97,9 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose }) => {
                 {isLoading && (
                   <div className="flex justify-start">
                     <div className="bg-white/40 p-4 rounded-[20px] rounded-tl-none flex space-x-1.5 items-center border border-white/50">
-                      <div className="w-1.5 h-1.5 bg-[#C1A3B5] rounded-full animate-bounce" />
-                      <div className="w-1.5 h-1.5 bg-[#C1A3B5] rounded-full animate-bounce [animation-delay:0.2s]" />
-                      <div className="w-1.5 h-1.5 bg-[#C1A3B5] rounded-full animate-bounce [animation-delay:0.4s]" />
+                      <div className="w-1.5 h-1.5 bg-accent opacity-60 rounded-full animate-bounce" />
+                      <div className="w-1.5 h-1.5 bg-accent opacity-60 rounded-full animate-bounce [animation-delay:0.2s]" />
+                      <div className="w-1.5 h-1.5 bg-accent opacity-60 rounded-full animate-bounce [animation-delay:0.4s]" />
                     </div>
                   </div>
                 )}
@@ -116,7 +112,7 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose }) => {
         <div className={`p-5 flex flex-col ${isOpen ? 'bg-white/10 border-t border-white/30' : ''}`}>
           <div className="relative group flex items-center">
             {!isOpen && (
-              <div className="absolute left-5 text-[#3E406F] pointer-events-none">
+              <div className="absolute left-5 text-accent pointer-events-none">
                 <Sparkles size={18} />
               </div>
             )}
@@ -128,12 +124,12 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose }) => {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               placeholder={isOpen ? "What's on your mind?" : "Compose with AI... (⌘K)"}
-              className={`w-full bg-white/40 border border-white/60 rounded-[24px] py-3.5 text-base text-[#2D2E4A] focus:outline-none focus:border-[#C1A3B5]/60 focus:bg-white/60 transition-all placeholder:text-slate-400 ${!isOpen ? 'pl-12 pr-24' : 'pl-6 pr-14'}`}
+              className={`w-full bg-white/40 border border-white/60 rounded-[24px] py-3.5 text-base text-surface-text focus:outline-none focus:border-accent/60 focus:bg-white/60 transition-all placeholder:opacity-30 ${!isOpen ? 'pl-12 pr-24' : 'pl-6 pr-14'}`}
             />
             
             <div className="absolute right-2 flex items-center space-x-2">
               {!isOpen && (
-                <div className="hidden sm:flex items-center space-x-1 glass px-2 py-1 rounded-lg text-[10px] text-slate-500 font-mono">
+                <div className="hidden sm:flex items-center space-x-1 glass px-2 py-1 rounded-lg text-[10px] opacity-50 font-mono">
                   <Command size={10} />
                   <span>K</span>
                 </div>
@@ -141,7 +137,7 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose }) => {
               <button 
                 onClick={handleSend}
                 disabled={isLoading || !input.trim()}
-                className="w-10 h-10 bg-[#3E406F] rounded-[16px] flex items-center justify-center text-white hover:scale-105 active:scale-95 disabled:opacity-30 disabled:scale-100 transition-all shadow-md"
+                className="w-10 h-10 bg-accent rounded-[16px] flex items-center justify-center text-white hover:scale-105 active:scale-95 disabled:opacity-30 disabled:scale-100 transition-all shadow-md"
               >
                 <Send size={16} />
               </button>
@@ -155,7 +151,7 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose }) => {
               className="mt-4 flex justify-center space-x-6"
             >
                {['/style', '/color', '/sea', '/draft'].map(cmd => (
-                 <button key={cmd} className="text-[11px] font-bold text-slate-400 hover:text-[#3E406F] transition-colors tracking-widest uppercase">{cmd}</button>
+                 <button key={cmd} className="text-[11px] font-bold opacity-40 hover:text-accent hover:opacity-100 transition-all tracking-widest uppercase">{cmd}</button>
                ))}
             </motion.div>
           )}

@@ -6,14 +6,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Forsion Desktop</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            accent: 'var(--color-primary)',
+            'surface-text': 'var(--color-text)',
+          },
+          fontFamily: {
+            cursive: ['"Dancing Script"', 'cursive'],
+          }
+        }
+      }
+    }
+  </script>
   <style>
+    :root {
+      --color-primary: #3E406F;
+      --color-secondary: #C1A3B5;
+      --color-text: #2D2E4A;
+      --glass-surface: rgba(255, 255, 255, 0.35);
+      --bg-desktop: linear-gradient(to bottom, #98B0B9, #C1A3B5, #3E406F);
+    }
     body {
       font-family: 'Inter', sans-serif;
       overflow: hidden;
       margin: 0;
       padding: 0;
-      background: #dcd7d0; /* Muted tan base */
+      background: var(--color-secondary);
     }
     .glass {
       background: rgba(255, 255, 255, 0.25);
@@ -21,7 +43,7 @@
       border: 1px solid rgba(255, 255, 255, 0.3);
     }
     .glass-dark {
-      background: rgba(255, 255, 255, 0.35);
+      background: var(--glass-surface);
       backdrop-filter: blur(28px);
       border: 1px solid rgba(255, 255, 255, 0.2);
     }
@@ -38,6 +60,11 @@
     .scrollbar-hide {
       -ms-overflow-style: none;
       scrollbar-width: none;
+    }
+    .bg-desktop-surface {
+      background: var(--bg-desktop);
+      background-size: cover;
+      background-position: center;
     }
   </style>
 <script type="importmap">

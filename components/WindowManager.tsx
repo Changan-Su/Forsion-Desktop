@@ -1,29 +1,31 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Minus, Maximize2 } from 'lucide-react';
-import { WindowState, AppId } from '../types';
-import { APPS } from '../constants';
+import { X, Minus, Maximize2, Image as ImageIcon, Check } from 'lucide-react';
+import { WindowState, AppId, Theme } from '../types';
+import { APPS, THEMES } from '../constants';
 
 interface WindowManagerProps {
   windows: WindowState[];
   onClose: (id: string) => void;
   onMinimize: (id: string) => void;
   onFocus: (id: string) => void;
+  theme: Theme;
+  onThemeChange: (theme: Theme) => void;
 }
 
 export const WindowManager: React.FC<WindowManagerProps> = ({ 
   windows, 
   onClose, 
   onMinimize, 
-  onFocus 
+  onFocus,
+  theme,
+  onThemeChange
 }) => {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
       <AnimatePresence>
         {windows.filter(w => !w.isMinimized).map((win) => {
-          const app = APPS.find(a => a.id === win.appId);
-          
           return (
             <motion.div
               key={win.id}
@@ -33,7 +35,7 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
               drag
               dragMomentum={false}
               onMouseDown={() => onFocus(win.id)}
-              className="absolute pointer-events-auto rounded-2xl glass-dark shadow-[0_20px_50px_rgba(62,64,111,0.1)] flex flex-col overflow-hidden border border-white/60"
+              className="absolute pointer-events-auto rounded-2xl glass-dark shadow-[0_20px_50px_rgba(0,0,0,0.15)] flex flex-col overflow-hidden border border-white/40"
               style={{
                 zIndex: win.zIndex,
                 width: win.width,
@@ -43,26 +45,26 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
               }}
             >
               {/* Title Bar */}
-              <div className="h-10 bg-white/40 flex items-center justify-between px-4 cursor-grab active:cursor-grabbing border-b border-white/40 select-none">
+              <div className="h-10 bg-white/20 flex items-center justify-between px-4 cursor-grab active:cursor-grabbing border-b border-white/20 select-none">
                 <div className="flex items-center space-x-2">
                   <div className="flex space-x-2 group-controls">
                     <button 
                       onClick={() => onClose(win.id)}
-                      className="w-3 h-3 rounded-full bg-[#C1A3B5]/80 hover:bg-[#C1A3B5] transition-colors"
+                      className="w-3 h-3 rounded-full bg-rose-400 hover:bg-rose-500 transition-colors"
                     />
                     <button 
                       onClick={() => onMinimize(win.id)}
-                      className="w-3 h-3 rounded-full bg-[#EBD3B4] hover:bg-[#d8c0a5] transition-colors"
+                      className="w-3 h-3 rounded-full bg-amber-400 hover:bg-amber-500 transition-colors"
                     />
-                    <button className="w-3 h-3 rounded-full bg-[#98B0B9] hover:bg-[#809ba5] transition-colors" />
+                    <button className="w-3 h-3 rounded-full bg-emerald-400 hover:bg-emerald-500 transition-colors" />
                   </div>
-                  <span className="text-[#3E406F] text-xs font-semibold ml-4 tracking-tight">{win.title}</span>
+                  <span className="text-surface-text text-xs font-semibold ml-4 tracking-tight">{win.title}</span>
                 </div>
               </div>
 
               {/* Content Area */}
-              <div className="flex-1 p-6 text-slate-800 overflow-auto bg-white/20 backdrop-blur-md">
-                {renderAppContent(win.appId)}
+              <div className="flex-1 p-6 text-surface-text overflow-auto bg-white/10 backdrop-blur-md">
+                {renderAppContent(win.appId, theme, onThemeChange)}
               </div>
             </motion.div>
           );
@@ -72,20 +74,89 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
   );
 };
 
-const renderAppContent = (appId: AppId) => {
+const renderAppContent = (appId: AppId, currentTheme: Theme, onThemeChange: (theme: Theme) => void) => {
+  const handleWallpaperUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const imageUrl = event.target?.result as string;
+        onThemeChange({
+          ...currentTheme,
+          id: 'custom-wallpaper',
+          name: 'Custom Wallpaper',
+          wallpaper: imageUrl
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   switch (appId) {
+    case 'settings':
+      return (
+        <div className="space-y-8">
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Desktop Settings</h2>
+            <p className="text-sm opacity-70">Customize your Forsion workspace theme and appearance.</p>
+          </div>
+
+          <section>
+            <h3 className="text-sm font-bold uppercase tracking-wider mb-4 opacity-60">Theme Presets</h3>
+            <div className="grid grid-cols-3 gap-4">
+              {THEMES.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => onThemeChange(t)}
+                  className={`relative group rounded-xl p-3 text-left transition-all ${currentTheme.id === t.id ? 'glass bg-white/40 ring-2 ring-accent' : 'glass hover:bg-white/30'}`}
+                >
+                  <div className="h-16 rounded-lg mb-2 shadow-inner" style={{ background: t.background }}></div>
+                  <div className="text-xs font-bold">{t.name}</div>
+                  {currentTheme.id === t.id && (
+                    <div className="absolute top-2 right-2 bg-accent text-white p-1 rounded-full">
+                      <Check size={10} />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <h3 className="text-sm font-bold uppercase tracking-wider mb-4 opacity-60">Wallpaper</h3>
+            <div className="flex items-center space-x-4">
+              <label className="cursor-pointer glass bg-white/20 hover:bg-white/40 px-6 py-4 rounded-2xl flex flex-col items-center justify-center transition-all border-dashed border-2 border-white/40">
+                <ImageIcon size={24} className="mb-2 opacity-50" />
+                <span className="text-xs font-bold">Upload Image</span>
+                <input type="file" className="hidden" accept="image/*" onChange={handleWallpaperUpload} />
+              </label>
+              {currentTheme.wallpaper && (
+                <div className="relative w-32 h-20 rounded-xl overflow-hidden glass shadow-lg">
+                  <img src={currentTheme.wallpaper} alt="Custom Wallpaper" className="w-full h-full object-cover" />
+                  <button 
+                    onClick={() => onThemeChange(THEMES[0])}
+                    className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center text-white text-[10px] font-bold transition-opacity"
+                  >
+                    Reset
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      );
     case 'knowledge':
       return (
         <div className="space-y-6">
-          <h2 className="text-2xl font-bold text-[#3E406F]">Sea Library</h2>
+          <h2 className="text-2xl font-bold text-accent">Sea Library</h2>
           <div className="grid grid-cols-2 gap-4">
             {['Impressionist Light', 'Cliffs of Étretat', 'Mist Studies', 'Tidal Patterns'].map(item => (
               <div key={item} className="glass p-4 rounded-xl hover:bg-white/40 transition-colors cursor-pointer group border-white/50">
-                <div className="w-10 h-10 rounded bg-[#C1A3B5]/20 mb-3 flex items-center justify-center">
-                  <div className="w-4 h-4 bg-[#C1A3B5] rounded-sm" />
+                <div className="w-10 h-10 rounded bg-accent/20 mb-3 flex items-center justify-center">
+                  <div className="w-4 h-4 bg-accent rounded-sm" />
                 </div>
-                <div className="font-semibold text-slate-700">{item}</div>
-                <div className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider">Archive</div>
+                <div className="font-semibold text-surface-text opacity-90">{item}</div>
+                <div className="text-[10px] opacity-50 mt-1 uppercase tracking-wider">Archive</div>
               </div>
             ))}
           </div>
@@ -95,15 +166,15 @@ const renderAppContent = (appId: AppId) => {
       return (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold text-slate-700">Autumn Equinox</h2>
-            <button className="glass px-3 py-1 rounded-full text-[10px] font-bold text-slate-500 uppercase">Season</button>
+            <h2 className="text-xl font-bold text-surface-text opacity-90">Autumn Equinox</h2>
+            <button className="glass px-3 py-1 rounded-full text-[10px] font-bold text-surface-text opacity-60 uppercase">Season</button>
           </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-slate-400 uppercase font-bold">
+          <div className="grid grid-cols-7 gap-1 text-center text-[10px] opacity-40 uppercase font-bold">
             {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(d => <div key={d}>{d}</div>)}
           </div>
           <div className="grid grid-cols-7 gap-1 h-full">
             {Array.from({ length: 31 }).map((_, i) => (
-              <div key={i} className={`aspect-square rounded-lg flex items-center justify-center text-sm transition-colors cursor-pointer ${i === 11 ? 'bg-[#3E406F] text-white shadow-md' : 'hover:bg-white/40 text-slate-600'}`}>
+              <div key={i} className={`aspect-square rounded-lg flex items-center justify-center text-sm transition-colors cursor-pointer ${i === 11 ? 'bg-accent text-white shadow-md' : 'hover:bg-white/40 text-surface-text opacity-80'}`}>
                 {i + 1}
               </div>
             ))}
@@ -115,18 +186,18 @@ const renderAppContent = (appId: AppId) => {
         <div className="h-full flex flex-col">
           <textarea 
             placeholder="Write while the sun sets..."
-            className="flex-1 bg-transparent resize-none outline-none text-lg text-[#2D2E4A] placeholder:text-slate-300 italic"
+            className="flex-1 bg-transparent resize-none outline-none text-lg text-surface-text placeholder:opacity-30 italic"
           />
-          <div className="pt-4 border-t border-slate-200 flex justify-between items-center">
-            <span className="text-[10px] text-slate-400 font-medium">Drafting in Forsion Desktop</span>
-            <button className="bg-[#3E406F] text-white text-[10px] font-bold px-4 py-1.5 rounded-full uppercase tracking-wider shadow-sm">Save</button>
+          <div className="pt-4 border-t border-white/20 flex justify-between items-center">
+            <span className="text-[10px] opacity-40 font-medium">Drafting in Forsion Desktop</span>
+            <button className="bg-accent text-white text-[10px] font-bold px-4 py-1.5 rounded-full uppercase tracking-wider shadow-sm">Save</button>
           </div>
         </div>
       );
     default:
       return (
         <div className="flex items-center justify-center h-full flex-col text-slate-400">
-          <div className="w-16 h-16 border-2 border-slate-100 rounded-full flex items-center justify-center mb-4 opacity-50">
+          <div className="w-16 h-16 border-2 border-white/20 rounded-full flex items-center justify-center mb-4 opacity-50">
              <span className="text-[10px] font-bold">...</span>
           </div>
           <p className="text-xs uppercase tracking-widest font-bold">Refining Vision</p>
