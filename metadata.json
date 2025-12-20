@@ -1,0 +1,5 @@
+{
+  "name": "Forsion Desktop",
+  "description": "A sophisticated web-based macOS-inspired desktop environment for the Forsion ecosystem, featuring a glassmorphism UI, window management, customizable widgets, and a Van Gogh-inspired color palette integrated with Gemini AI.",
+  "requestFramePermissions": []
+}
