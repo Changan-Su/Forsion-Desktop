@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const PROJECT_SOURCE = import.meta.env.VITE_PROJECT_SOURCE || 'desktop';
 
 export interface ApiResponse<T = any> {
   data?: T;
@@ -16,6 +17,7 @@ class ApiService {
   private getHeaders(): HeadersInit {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
+      'X-Project-Source': PROJECT_SOURCE,
     };
 
     const token = localStorage.getItem('auth_token');
@@ -41,17 +43,30 @@ class ApiService {
     };
 
     try {
-      console.log(`[ApiService] Requesting: ${url}`);
       const response = await fetch(url, config);
-      console.log(`[ApiService] Response status: ${response.status} ${response.statusText}`);
       
-      const data = await response.json();
-      console.log(`[ApiService] Response data:`, data);
+      // Check content type before parsing JSON
+      const contentType = response.headers.get('content-type');
+      let data: any;
+      
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        // Non-JSON response (e.g., text/plain)
+        const text = await response.text();
+        data = { detail: text || `HTTP error! status: ${response.status}` };
+      }
 
       if (!response.ok) {
-        const errorMsg = data.error || `HTTP error! status: ${response.status}`;
+        // Backend Service uses { detail: "..." } format for errors
+        const errorMsg = data.detail || data.error || `HTTP error! status: ${response.status}`;
         console.error(`[ApiService] Request failed: ${errorMsg}`);
-        throw new Error(errorMsg);
+        
+        // 创建自定义错误，保留状态码
+        const error: any = new Error(errorMsg);
+        error.status = response.status;
+        error.response = data;
+        throw error;
       }
 
       return data;
@@ -96,10 +111,11 @@ class ApiService {
   // 测试后端连接
   async testConnection(): Promise<{ status: string; database?: string; timestamp?: string; error?: string }> {
     try {
-      const response = await fetch(`${this.baseUrl}/health`, {
+      const response = await fetch(`${this.baseUrl}/api/health`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'X-Project-Source': PROJECT_SOURCE,
         },
       });
       

@@ -7,13 +7,12 @@ import sessionRoutes from './routes/sessions.js';
 import messageRoutes from './routes/messages.js';
 import chatRoutes from './routes/chat.js';
 import settingsRoutes from './routes/settings.js';
-import creditRoutes from './routes/credits.js';
 
 // 加载环境变量
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 3001;
 
 // 中间件
 app.use(cors({
@@ -53,7 +52,6 @@ app.use('/api/sessions', sessionRoutes);
 app.use('/api', messageRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/settings', settingsRoutes);
-app.use('/api/credits', creditRoutes);
 
 // 404 处理
 app.use((req, res) => {
@@ -80,15 +78,11 @@ async function startServer() {
         console.warn('⚠️  Warning: Failed to connect to database.');
         console.warn('   Server will start but database features will be unavailable.');
         console.warn('   Please check your MySQL configuration in server/.env');
-        console.warn('   Make sure MySQL is running and database "forsion_ai_studio" exists.\n');
-        console.warn('   This database should be shared with Forsion AI Studio.\n');
+        console.warn('   Make sure MySQL is running and database "forsion_desktop" exists.\n');
         dbStatus = 'Disconnected';
       } else {
         dbStatus = 'Connected';
-        // 注意：不再初始化数据库表，因为使用的是 AI Studio 共享数据库
-        // 表结构应该已经在 AI Studio 项目中创建
-        console.log('ℹ️  Using shared database with Forsion AI Studio');
-        console.log('ℹ️  Database tables should already exist from AI Studio setup');
+        console.log('ℹ️  Connected to forsion_desktop database');
       }
     } catch (dbTestError: any) {
       console.warn('⚠️  Database connection test failed:', dbTestError.message || dbTestError);

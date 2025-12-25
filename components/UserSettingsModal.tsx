@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Coins, CreditCard, History, User, Settings } from 'lucide-react';
-import CreditService, { UserCredits, CreditTransaction } from '../services/creditService';
+import { X, User, Coins, TrendingUp, TrendingDown, Camera, Upload, Edit2, Check, X as XIcon } from 'lucide-react';
 import AuthService from '../services/authService';
+import CreditService, { CreditBalance } from '../services/creditService';
+import AvatarService from '../services/avatarService';
+import Avatar from './Avatar';
+import apiService from '../services/apiService';
 
 interface UserSettingsModalProps {
   isOpen: boolean;
@@ -10,74 +13,135 @@ interface UserSettingsModalProps {
 }
 
 const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose }) => {
-  const [credits, setCredits] = useState<UserCredits | null>(null);
-  const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'transactions'>('overview');
   const [user, setUser] = useState<any>(null);
+  const [creditBalance, setCreditBalance] = useState<CreditBalance | null>(null);
+  const [isLoadingCredits, setIsLoadingCredits] = useState(false);
+  const [creditError, setCreditError] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isEditingNickname, setIsEditingNickname] = useState(false);
+  const [nicknameInput, setNicknameInput] = useState('');
+  const [isUpdatingNickname, setIsUpdatingNickname] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      loadUserData();
+    if (!isOpen) {
+      // 重置状态
+      setCreditBalance(null);
+      setCreditError(null);
+      setIsEditingNickname(false);
+      setNicknameInput('');
+      return;
     }
+
+    // 从后端获取最新的用户信息（包括头像）
+    const loadUserInfo = async () => {
+      if (AuthService.isAuthenticated()) {
+        try {
+          const latestUser = await AuthService.getCurrentUser();
+          setUser(latestUser);
+          
+          // 加载积分信息
+          setIsLoadingCredits(true);
+          setCreditError(null);
+          try {
+            const balance = await CreditService.getBalance();
+            setCreditBalance(balance);
+          } catch (error: any) {
+            console.error('Failed to load credit balance:', error);
+            setCreditError(error.message || '加载积分失败');
+            // 不阻止模态框显示
+          } finally {
+            setIsLoadingCredits(false);
+          }
+        } catch (error) {
+          console.error('Failed to fetch current user:', error);
+          // 如果失败，使用本地存储的用户信息
+          const userInfo = AuthService.getUser();
+          setUser(userInfo);
+        }
+      } else {
+        const userInfo = AuthService.getUser();
+        setUser(userInfo);
+      }
+    };
+    
+    loadUserInfo();
   }, [isOpen]);
 
-  const loadUserData = async () => {
+  // 初始化昵称输入
+  useEffect(() => {
+    if (isEditingNickname && user) {
+      setNicknameInput(user.nickname || '');
+    }
+  }, [isEditingNickname, user]);
+
+  // 处理昵称更新
+  const handleNicknameUpdate = async () => {
+    if (!user) return;
+    
+    // 验证昵称长度
+    if (nicknameInput.length > 100) {
+      alert('昵称长度不能超过 100 个字符');
+      return;
+    }
+
+    setIsUpdatingNickname(true);
     try {
-      setLoading(true);
-
-      // 获取用户信息
-      const userInfo = AuthService.getUser();
-      setUser(userInfo);
-
-      // 获取积分信息
-      const [creditAccount, transactionHistory] = await Promise.all([
-        CreditService.getCreditAccount(),
-        CreditService.getTransactionHistory(20)
-      ]);
-
-      setCredits(creditAccount);
-      setTransactions(transactionHistory);
-    } catch (error) {
-      console.error('Failed to load user data:', error);
+      // 调用 PUT /api/settings 更新昵称（实际端点）
+      await apiService.put('/api/settings', {
+        nickname: nicknameInput.trim() || null
+      });
+      
+      // 更新本地用户信息
+      const updatedUser = await AuthService.getCurrentUser();
+      setUser(updatedUser);
+      setIsEditingNickname(false);
+      
+      // 触发全局更新
+      window.dispatchEvent(new Event('user-updated'));
+    } catch (error: any) {
+      console.error('Failed to update nickname:', error);
+      alert('更新昵称失败: ' + (error.message || '未知错误'));
     } finally {
-      setLoading(false);
+      setIsUpdatingNickname(false);
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return amount.toFixed(2);
+  // 取消编辑昵称
+  const handleCancelNicknameEdit = () => {
+    setIsEditingNickname(false);
+    setNicknameInput(user?.nickname || '');
   };
 
-  const getTransactionTypeColor = (type: string) => {
-    switch (type) {
-      case 'usage':
-        return 'text-red-400';
-      case 'bonus':
-        return 'text-green-400';
-      case 'refund':
-        return 'text-blue-400';
-      case 'initial':
-        return 'text-purple-400';
-      default:
-        return 'text-gray-400';
+  // 处理头像上传
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // 验证文件
+    const validation = AvatarService.validateImageFile(file);
+    if (!validation.valid) {
+      alert(validation.error);
+      return;
     }
-  };
 
-  const getTransactionTypeLabel = (type: string) => {
-    switch (type) {
-      case 'usage':
-        return '使用';
-      case 'bonus':
-        return '奖励';
-      case 'refund':
-        return '退款';
-      case 'initial':
-        return '初始';
-      case 'adjustment':
-        return '调整';
-      default:
-        return type;
+    setIsUploadingAvatar(true);
+    try {
+      const avatarUrl = await AvatarService.uploadAvatar(file);
+      const updatedUser = await AvatarService.updateAvatarUrl(avatarUrl);
+      setUser(updatedUser);
+      
+      // 触发 App.tsx 重新加载用户信息
+      window.dispatchEvent(new Event('user-updated'));
+    } catch (error: any) {
+      console.error('Upload failed:', error);
+      alert('上传失败，请重试: ' + (error.message || '未知错误'));
+    } finally {
+      setIsUploadingAvatar(false);
+      // 清空文件输入，允许重新选择同一文件
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -99,12 +163,43 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose }
               <div className="p-6 bg-white/10 border-b border-white/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-accent rounded-full flex items-center justify-center text-white shadow-lg">
-                      <User size={24} />
+                    {/* 头像显示和上传区域 */}
+                    <div 
+                      className="relative cursor-pointer group"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Avatar user={user} size="lg" />
+                      
+                      {/* 悬停时显示上传图标 */}
+                      <div className="absolute inset-0 bg-black/50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        {isUploadingAvatar ? (
+                          <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent"></div>
+                        ) : (
+                          <Camera size={24} className="text-white" />
+                        )}
+                      </div>
+                      
+                      {/* 上传提示 */}
+                      <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-accent rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Upload size={14} className="text-white" />
+                      </div>
                     </div>
+
+                    {/* 隐藏的文件输入 */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                      disabled={isUploadingAvatar}
+                    />
+
                     <div>
                       <h2 className="text-lg font-bold text-surface-text">个人设置</h2>
-                      <p className="text-sm text-surface-text opacity-70">{user?.username || '用户'}</p>
+                      <p className="text-sm text-surface-text opacity-70">
+                        {user?.nickname || user?.username || '用户'}
+                      </p>
                     </div>
                   </div>
                   <button
@@ -116,132 +211,138 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose }
                 </div>
               </div>
 
-              {/* 标签页 */}
-              <div className="flex border-b border-white/20">
-                <button
-                  onClick={() => setActiveTab('overview')}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                    activeTab === 'overview'
-                      ? 'text-accent border-b-2 border-accent'
-                      : 'text-surface-text opacity-70 hover:text-surface-text hover:opacity-100'
-                  }`}
-                >
-                  <Coins size={16} className="inline mr-2" />
-                  积分概览
-                </button>
-                <button
-                  onClick={() => setActiveTab('transactions')}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                    activeTab === 'transactions'
-                      ? 'text-accent border-b-2 border-accent'
-                      : 'text-surface-text opacity-70 hover:text-surface-text hover:opacity-100'
-                  }`}
-                >
-                  <History size={16} className="inline mr-2" />
-                  交易记录
-                </button>
-              </div>
-
               {/* 内容区域 */}
-              <div className="max-h-96 overflow-y-auto">
-                {loading ? (
-                  <div className="p-8 text-center">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
-                    <p className="mt-2 text-surface-text opacity-70">加载中...</p>
+              <div className="p-6">
+                <div className="space-y-4">
+                  {/* 用户信息 */}
+                  <div className="bg-white/5 rounded-lg p-4 space-y-2 border border-white/10">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-surface-text opacity-70">昵称:</span>
+                      {isEditingNickname ? (
+                        <div className="flex items-center gap-2 flex-1 justify-end">
+                          <input
+                            type="text"
+                            value={nicknameInput}
+                            onChange={(e) => setNicknameInput(e.target.value)}
+                            placeholder="输入昵称"
+                            maxLength={100}
+                            className="px-2 py-1 bg-white/10 border border-white/20 rounded-lg text-surface-text text-sm focus:outline-none focus:border-accent flex-1 max-w-[200px]"
+                            disabled={isUpdatingNickname}
+                          />
+                          <button
+                            onClick={handleNicknameUpdate}
+                            disabled={isUpdatingNickname}
+                            className="w-7 h-7 bg-accent hover:bg-accent/80 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
+                          >
+                            {isUpdatingNickname ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                            ) : (
+                              <Check size={14} className="text-white" />
+                            )}
+                          </button>
+                          <button
+                            onClick={handleCancelNicknameEdit}
+                            disabled={isUpdatingNickname}
+                            className="w-7 h-7 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
+                          >
+                            <XIcon size={14} className="text-surface-text" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-surface-text font-medium">{user?.nickname || '未设置'}</span>
+                          <button
+                            onClick={() => setIsEditingNickname(true)}
+                            className="w-6 h-6 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors"
+                            title="编辑昵称"
+                          >
+                            <Edit2 size={12} className="text-surface-text opacity-70" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-surface-text opacity-70">用户名:</span>
+                      <span className="text-surface-text font-medium">{user?.username || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-surface-text opacity-70">邮箱:</span>
+                      <span className="text-surface-text font-medium">{user?.email || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-surface-text opacity-70">角色:</span>
+                      <span className="text-surface-text font-medium capitalize">{user?.role || 'user'}</span>
+                    </div>
+                    {user?.created_at && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-surface-text opacity-70">注册时间:</span>
+                        <span className="text-surface-text">
+                          {new Date(user.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <>
-                    {/* 积分概览 */}
-                    {activeTab === 'overview' && credits && (
-                      <div className="p-6 space-y-6">
-                        {/* 当前余额 */}
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-surface-text mb-1">
-                            {formatCurrency(credits.balance)}
-                          </div>
-                          <div className="text-sm text-surface-text opacity-70">可用积分</div>
-                        </div>
 
-                        {/* 统计信息 */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="bg-green-500/10 rounded-lg p-4 text-center border border-green-500/20">
-                            <div className="text-lg font-semibold text-green-400">
-                              +{formatCurrency(credits.totalEarned)}
+                  {/* 积分信息 */}
+                  {isLoadingCredits ? (
+                    <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                      <div className="flex items-center justify-center text-surface-text opacity-50">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-accent mr-2"></div>
+                        加载积分信息...
+                      </div>
+                    </div>
+                  ) : creditError ? (
+                    <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                      <div className="flex items-center space-x-2 text-surface-text opacity-50 text-sm">
+                        <Coins size={16} className="text-surface-text opacity-30" />
+                        <span>积分信息暂时无法加载</span>
+                      </div>
+                    </div>
+                  ) : creditBalance ? (
+                    <div className="bg-white/5 rounded-lg p-4 space-y-3 border border-white/10">
+                      <div className="flex items-center space-x-2 mb-3">
+                        <Coins size={18} className="text-accent" />
+                        <h3 className="text-sm font-bold text-surface-text">积分账户</h3>
+                      </div>
+                      
+                      <div className="bg-accent/10 rounded-lg p-3 border border-accent/20">
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-surface-text opacity-70 text-xs uppercase tracking-wider">当前余额</span>
+                          <span className="text-2xl font-bold text-accent">
+                            {typeof creditBalance.balance === 'number' ? creditBalance.balance.toFixed(2) : '0.00'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
+                        <div className="flex items-center space-x-2">
+                          <TrendingUp size={14} className="text-green-400" />
+                          <div>
+                            <div className="text-xs text-surface-text opacity-50">累计获得</div>
+                            <div className="text-sm font-medium text-surface-text">
+                              {typeof creditBalance.totalEarned === 'number' ? creditBalance.totalEarned.toFixed(2) : '0.00'}
                             </div>
-                            <div className="text-xs text-green-400 opacity-80">累计获得</div>
-                          </div>
-                          <div className="bg-red-500/10 rounded-lg p-4 text-center border border-red-500/20">
-                            <div className="text-lg font-semibold text-red-400">
-                              -{formatCurrency(credits.totalSpent)}
-                            </div>
-                            <div className="text-xs text-red-400 opacity-80">累计使用</div>
                           </div>
                         </div>
-
-                        {/* 账户信息 */}
-                        <div className="bg-white/5 rounded-lg p-4 space-y-2 border border-white/10">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-surface-text opacity-70">账户ID:</span>
-                            <span className="font-mono text-xs text-surface-text">{credits.id.slice(0, 8)}...</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-surface-text opacity-70">创建时间:</span>
-                            <span className="text-surface-text">
-                              {new Date(credits.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-surface-text opacity-70">最后更新:</span>
-                            <span className="text-surface-text">
-                              {new Date(credits.updatedAt).toLocaleDateString()}
-                            </span>
+                        <div className="flex items-center space-x-2">
+                          <TrendingDown size={14} className="text-red-400" />
+                          <div>
+                            <div className="text-xs text-surface-text opacity-50">累计消费</div>
+                            <div className="text-sm font-medium text-surface-text">
+                              {typeof creditBalance.totalSpent === 'number' ? creditBalance.totalSpent.toFixed(2) : '0.00'}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    )}
 
-                    {/* 交易记录 */}
-                    {activeTab === 'transactions' && (
-                      <div className="p-6">
-                        {transactions.length === 0 ? (
-                          <div className="text-center py-8">
-                            <CreditCard size={48} className="mx-auto text-surface-text opacity-30 mb-4" />
-                            <p className="text-surface-text opacity-70">暂无交易记录</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {transactions.map((transaction) => (
-                              <div key={transaction.id} className="bg-white/5 rounded-lg p-4 border border-white/10">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center space-x-2">
-                                    <span className={`text-sm font-medium ${getTransactionTypeColor(transaction.type)}`}>
-                                      {getTransactionTypeLabel(transaction.type)}
-                                    </span>
-                                    <span className={`text-sm font-bold ${
-                                      transaction.amount > 0 ? 'text-green-400' : 'text-red-400'
-                                    }`}>
-                                      {transaction.amount > 0 ? '+' : ''}{formatCurrency(transaction.amount)}
-                                    </span>
-                                  </div>
-                                  <span className="text-xs text-surface-text opacity-60">
-                                    {new Date(transaction.createdAt).toLocaleString()}
-                                  </span>
-                                </div>
-                                {transaction.description && (
-                                  <p className="text-sm text-surface-text opacity-80 mb-2">{transaction.description}</p>
-                                )}
-                                <div className="flex justify-between text-xs text-surface-text opacity-60">
-                                  <span>交易前: {formatCurrency(transaction.balanceBefore)}</span>
-                                  <span>交易后: {formatCurrency(transaction.balanceAfter)}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
+                      {creditBalance.updatedAt && (
+                        <div className="text-xs text-surface-text opacity-40 pt-2 border-t border-white/5">
+                          最后更新: {new Date(creditBalance.updatedAt).toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
           </motion.div>

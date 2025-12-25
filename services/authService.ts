@@ -1,29 +1,7 @@
 import apiService from './apiService';
+import type { User, LoginRequest, RegisterRequest, AuthResponse } from '../types/shared';
 
-export interface User {
-  id: number;
-  username: string;
-  email: string;
-  role: 'admin' | 'user';
-  created_at: string;
-  updated_at: string;
-}
-
-export interface LoginRequest {
-  username: string;
-  password: string;
-}
-
-export interface RegisterRequest {
-  username: string;
-  password: string;
-  email: string;
-}
-
-export interface AuthResponse {
-  token: string;
-  user: User;
-}
+export type { User, LoginRequest, RegisterRequest, AuthResponse };
 
 export class AuthService {
   private static TOKEN_KEY = 'auth_token';
@@ -50,12 +28,20 @@ export class AuthService {
   }
 
   static async getCurrentUser(): Promise<User> {
-    const response = await apiService.get<{ user: User }>('/api/auth/me');
+    const response = await apiService.get<any>('/api/auth/me');
+    
+    // 处理两种可能的响应格式: { user: User } 或直接返回 User
+    const user: User = response.user || response;
+    
+    // 调试：打印响应用于排查头像字段
+    console.log('[AuthService] getCurrentUser response:', response);
+    console.log('[AuthService] Extracted user:', user);
+    console.log('[AuthService] User avatar field:', user.avatar || user.avatarUrl || 'NOT FOUND');
     
     // 更新本地存储的用户信息
-    localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
+    localStorage.setItem(this.USER_KEY, JSON.stringify(user));
     
-    return response.user;
+    return user;
   }
 
   static logout(): void {
@@ -86,7 +72,20 @@ export class AuthService {
     const user = this.getUser();
     return user?.role === 'admin';
   }
+
+  /**
+   * 获取用户显示名称
+   * 优先使用 nickname，如果为空则使用 username
+   */
+  static getDisplayName(user: User | null): string {
+    if (!user) return '用户';
+    return user.nickname || user.username;
+  }
 }
 
 export default AuthService;
+
+
+
+
 

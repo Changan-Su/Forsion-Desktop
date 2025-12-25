@@ -50,3 +50,7 @@ router.post('/logout', authenticateToken, async (req: AuthRequest, res: Response
 
 export default router;
 
+
+
+
+

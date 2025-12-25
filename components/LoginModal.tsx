@@ -29,6 +29,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
         await AuthService.register({ username, password, email });
       }
       
+      // 登录/注册成功后，从后端获取最新的用户信息（包括头像）
+      try {
+        await AuthService.getCurrentUser();
+      } catch (userError) {
+        console.error('Failed to fetch current user after auth:', userError);
+        // 继续执行，使用登录/注册响应中的用户信息
+      }
+      
       onLoginSuccess();
       onClose();
     } catch (err: any) {
@@ -134,4 +142,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
     </div>
   );
 };
+
+
+
+
 

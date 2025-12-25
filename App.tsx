@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Dock } from './components/Dock';
 import { WindowManager } from './components/WindowManager';
@@ -6,16 +5,18 @@ import { AIChat } from './components/AIChat';
 import { LoginModal } from './components/LoginModal';
 import { WidgetBoard } from './components/WidgetBoard';
 import UserSettingsModal from './components/UserSettingsModal';
+import Avatar from './components/Avatar';
 import { WindowState, AppId, Theme } from './types';
 import { APPS, THEMES } from './constants';
 import { motion } from 'framer-motion';
-import { User, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import AuthService from './services/authService';
 
 const App: React.FC = () => {
   const [windows, setWindows] = useState<WindowState[]>([]);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [installedApps, setInstalledApps] = useState<AppId[]>(['knowledge', 'calendar', 'workspace', 'recipe', 'studio', 'notes', 'settings']);
   const [nextZIndex, setNextZIndex] = useState(10);
   const [currentTheme, setCurrentTheme] = useState<Theme>(THEMES[0]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -32,13 +33,36 @@ const App: React.FC = () => {
     root.style.setProperty('--bg-desktop', currentTheme.wallpaper ? `url(${currentTheme.wallpaper})` : currentTheme.background);
   }, [currentTheme]);
 
-  // Check authentication status
+  // Check authentication status and sync user info from backend
   useEffect(() => {
-    const authenticated = AuthService.isAuthenticated();
-    setIsAuthenticated(authenticated);
-    if (authenticated) {
-      setCurrentUser(AuthService.getUser());
-    }
+    const initAuth = async () => {
+      const authenticated = AuthService.isAuthenticated();
+      setIsAuthenticated(authenticated);
+      if (authenticated) {
+        try {
+          // 从后端获取最新的用户信息（包括头像）
+          const latestUser = await AuthService.getCurrentUser();
+          setCurrentUser(latestUser);
+        } catch (error) {
+          console.error('Failed to fetch current user:', error);
+          // 如果失败，使用本地存储的用户信息
+          setCurrentUser(AuthService.getUser());
+        }
+      }
+    };
+    
+    initAuth();
+  }, []);
+
+  // Listen for user updates (e.g., avatar changes)
+  useEffect(() => {
+    const handleUserUpdate = () => {
+      const updatedUser = AuthService.getUser();
+      setCurrentUser(updatedUser);
+    };
+
+    window.addEventListener('user-updated', handleUserUpdate);
+    return () => window.removeEventListener('user-updated', handleUserUpdate);
   }, []);
 
   useEffect(() => {
@@ -52,9 +76,17 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleLoginSuccess = () => {
+  const handleLoginSuccess = async () => {
     setIsAuthenticated(true);
-    setCurrentUser(AuthService.getUser());
+    try {
+      // 登录成功后，从后端获取最新的用户信息（包括头像）
+      const latestUser = await AuthService.getCurrentUser();
+      setCurrentUser(latestUser);
+    } catch (error) {
+      console.error('Failed to fetch current user after login:', error);
+      // 如果失败，使用本地存储的用户信息
+      setCurrentUser(AuthService.getUser());
+    }
   };
 
   const handleLogout = () => {
@@ -63,13 +95,38 @@ const App: React.FC = () => {
     setCurrentUser(null);
   };
 
+  const hasAppOpen = windows.some(w => !w.isMinimized);
+
+  // Update window positions when layout changes
+  // Windows should always remain centered
+  useEffect(() => {
+    const centerWindows = () => {
+      const screenCenter = window.innerWidth / 2;
+      const windowWidth = 680;
+      const targetX = screenCenter - (windowWidth / 2);
+      
+      setWindows(prev => prev.map(w => {
+        if (w.x !== targetX) {
+          return { ...w, x: targetX };
+        }
+        return w;
+      }));
+    };
+
+    // Center immediately
+    centerWindows();
+
+    // Also recenter on window resize
+    window.addEventListener('resize', centerWindows);
+    return () => window.removeEventListener('resize', centerWindows);
+  }, [windows.length]); // Trigger when windows are added/removed
+
   const launchApp = useCallback((appId: AppId) => {
     const existing = windows.find(w => w.appId === appId);
+    
+    // Toggle Close Logic: If app is already open, close it.
     if (existing) {
-      setWindows(prev => prev.map(w => 
-        w.appId === appId ? { ...w, isMinimized: false, zIndex: nextZIndex } : w
-      ));
-      setNextZIndex(z => z + 1);
+      setWindows(prev => prev.filter(w => w.id !== existing.id));
       return;
     }
 
@@ -82,10 +139,11 @@ const App: React.FC = () => {
       isMinimized: false,
       isMaximized: false,
       zIndex: nextZIndex,
-      x: 300 + (windows.length * 20),
-      y: 150 + (windows.length * 20),
-      width: 600,
-      height: 500
+      // Start centered, the useEffect will keep it centered
+      x: (window.innerWidth / 2) - 340,
+      y: window.innerHeight / 2 - 280,
+      width: 680,
+      height: 560
     };
 
     setWindows(prev => [...prev, newWindow]);
@@ -164,12 +222,12 @@ const App: React.FC = () => {
               }
             }}
           >
-            <div className="w-10 h-10 bg-accent rounded-2xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
-              <User size={20} />
+            <div className="group-hover:scale-110 transition-transform">
+              <Avatar user={currentUser} size="md" />
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-bold text-surface-text">
-                {isAuthenticated ? currentUser?.username : '账户设置'}
+                {isAuthenticated ? (currentUser?.nickname || currentUser?.username) : '账户设置'}
               </span>
               <span className="text-[10px] text-surface-text opacity-50 uppercase tracking-widest font-medium">
                 {isAuthenticated ? 'Logged In' : 'User Profile'}
@@ -185,10 +243,17 @@ const App: React.FC = () => {
           onFocus={focusWindow}
           theme={currentTheme}
           onThemeChange={updateTheme}
+          installedApps={installedApps}
+          onInstall={(appId) => setInstalledApps(prev => [...prev, appId])}
+          onLaunchApp={launchApp}
         />
       </main>
 
-      <AIChat isOpen={isAIChatOpen} onClose={() => setIsAIChatOpen(prev => !prev)} />
+      <AIChat 
+        isOpen={isAIChatOpen} 
+        onClose={() => setIsAIChatOpen(prev => !prev)} 
+        hasAppOpen={hasAppOpen}
+      />
       
       <LoginModal 
         isOpen={isLoginModalOpen} 

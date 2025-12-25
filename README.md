@@ -34,9 +34,20 @@ cd Forsion-Desktop-main
 
 ### 2. 数据库设置
 
-```sql
+**方法一：使用命令行**
+```bash
+# 登录 MySQL
+mysql -u root -p
+
+# 执行以下 SQL 命令
 CREATE DATABASE forsion_desktop CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
+
+**方法二：使用 MySQL Workbench**
+1. 打开 MySQL Workbench
+2. 连接到本地 MySQL 服务器
+3. 创建新数据库：`forsion_desktop`
+4. 字符集选择：`utf8mb4`
 
 ### 3. 配置环境变量
 
@@ -97,11 +108,62 @@ chmod +x start-dev.sh
 - 前端：http://localhost:3000
 - 后端 API：http://localhost:3001
 
+### 7. 首次使用
+
+1. 打开 http://localhost:3000
+2. 点击右上角的"账户设置"按钮
+3. 选择"Sign up"注册新账户并登录
+
+### 8. 使用 AI 聊天
+
+1. 按 `Ctrl+K` (Windows) 或 `⌘K` (Mac) 打开 AI 聊天
+2. 选择想要使用的 AI 模型
+3. 查看和管理聊天会话
+4. 所有对话会自动保存
+
+## ❓ 常见问题
+
+### 数据库连接失败
+
+- 检查 MySQL 服务是否启动
+- 确认 `server/.env` 中的数据库配置正确
+- 确认数据库 `forsion_desktop` 已创建
+
+### API Key 无效
+
+- 确认 Gemini API Key 正确
+- 检查 API Key 是否有效且未过期
+- 在 Google AI Studio 获取密钥：https://makersuite.google.com/app/apikey
+
+### 端口被占用
+
+如果 3000 或 3001 端口被占用，可以在配置文件中修改端口：
+
+**修改后端端口**（server/.env）：
+```env
+PORT=3005  # 改为其他端口
+```
+
+别忘了更新 `.env.local` 中的 `VITE_API_URL`
+
+### 依赖安装失败
+
+```bash
+# 清除缓存重试
+npm cache clean --force
+npm install
+
+# 后端
+cd server
+npm cache clean --force
+npm install
+```
+
 ## 📖 文档
 
-- [📚 完整实施文档](./IMPLEMENTATION.md) - 详细的架构和 API 说明
-- [⚡ 快速开始指南](./QUICKSTART.md) - 一步步设置指南
-- [✅ 完成总结](./COMPLETION_SUMMARY.md) - 已实现功能列表
+- [📚 API 文档](./IMPLEMENTATION.md) - 详细的 API 接口说明
+- [🏗️ 系统架构](./ARCHITECTURE.md) - 架构设计和数据流
+- [🚀 部署指南](./DEPLOYMENT_CHECKLIST.md) - 生产环境部署检查清单
 
 ## 🏗️ 技术栈
 

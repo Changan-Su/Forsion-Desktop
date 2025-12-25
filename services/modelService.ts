@@ -1,52 +1,54 @@
 import apiService from './apiService';
+import type { AIModel, UserSettings } from '../types/shared';
+import SettingsStorageService from './settingsStorageService';
 
-export interface AIModel {
+export type { AIModel, UserSettings };
+
+// Backend Service model format (from /api/models)
+interface BackendModel {
   id: string;
   name: string;
   provider: 'gemini' | 'openai' | 'deepseek' | 'claude' | 'external';
   description?: string;
-  enabled: boolean;
   icon?: string;
-  avatar?: string | null;
-  apiModelId?: string | null;
-  defaultBaseUrl?: string | null;
-}
-
-export interface UserSettings {
-  id: number;
-  user_id: number;
-  preferred_model: string;
-  theme_preferences?: any;
-  created_at: string;
-  updated_at: string;
+  isEnabled: boolean;
+  apiModelId?: string;
+  defaultBaseUrl?: string;
 }
 
 export class ModelService {
-  // 获取可用模型列表
-  static async getAvailableModels(): Promise<AIModel[]> {
+  // 获取可用模型列表 (from Backend Service)
+  static async getAvailableModels(forceRefresh: boolean = false): Promise<AIModel[]> {
     try {
-      console.log('[ModelService] Fetching models from API: /api/chat/models');
-      const token = localStorage.getItem('auth_token');
-      console.log('[ModelService] Auth token exists:', !!token);
-      if (token) {
-        console.log('[ModelService] Token preview:', token.substring(0, 20) + '...');
+      // 如果强制刷新，清除本地缓存
+      if (forceRefresh) {
+        this.clearCache();
       }
       
-      const response = await apiService.get<{ models: AIModel[] }>('/api/chat/models');
-      console.log('[ModelService] API response received:', response);
-      console.log('[ModelService] Response type:', typeof response);
-      console.log('[ModelService] Response keys:', Object.keys(response || {}));
-      console.log('[ModelService] Models received:', response?.models?.length || 0);
+      // Use Backend Service endpoint: /api/models
+      const models = await apiService.get<BackendModel[]>('/api/models');
       
-      if (response && response.models && Array.isArray(response.models)) {
-        console.log(`[ModelService] Successfully loaded ${response.models.length} models:`);
-        response.models.forEach((model: AIModel, index: number) => {
-          console.log(`  ${index + 1}. ${model.id} - ${model.name} (${model.provider})`);
-        });
-        return response.models;
+      if (models && Array.isArray(models)) {
+        // Map Backend Service format to Desktop format
+        const mappedModels: AIModel[] = models
+          .filter(model => model.isEnabled) // Only return enabled models
+          .map(model => ({
+            id: model.id,
+            name: model.name,
+            provider: model.provider,
+            description: model.description,
+            enabled: model.isEnabled,
+            icon: model.icon,
+            avatar: null,
+            apiModelId: model.apiModelId || null,
+            defaultBaseUrl: model.defaultBaseUrl || null,
+          }));
+        
+        // Cache the models
+        this.cachedModels = mappedModels;
+        return mappedModels;
       } else {
-        console.error('[ModelService] Invalid response format:', response);
-        console.error('[ModelService] Response structure:', JSON.stringify(response, null, 2));
+        console.error('[ModelService] Invalid response format:', models);
         return [];
       }
     } catch (error) {
@@ -61,24 +63,22 @@ export class ModelService {
     }
   }
 
-  // 获取用户设置
+  // 获取用户设置 (from localStorage via SettingsStorageService)
   static async getUserSettings(): Promise<UserSettings> {
-    const response = await apiService.get<{ settings: UserSettings }>('/api/settings');
-    return response.settings;
+    return SettingsStorageService.getUserSettings();
   }
 
-  // 更新用户设置
+  // 更新用户设置 (to localStorage via SettingsStorageService)
   static async updateUserSettings(updates: {
     preferred_model?: string;
     theme_preferences?: any;
   }): Promise<UserSettings> {
-    const response = await apiService.put<{ settings: UserSettings }>('/api/settings', updates);
-    return response.settings;
+    return SettingsStorageService.updateUserSettings(updates);
   }
 
-  // 设置默认模型
+  // 设置默认模型 (to localStorage via SettingsStorageService)
   static async setPreferredModel(modelId: string): Promise<UserSettings> {
-    return this.updateUserSettings({ preferred_model: modelId });
+    return SettingsStorageService.setPreferredModel(modelId);
   }
 
   // 本地缓存模型列表

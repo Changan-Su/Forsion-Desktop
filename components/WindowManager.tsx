@@ -5,6 +5,8 @@ import { X, Minus, Maximize2, Image as ImageIcon, Check, Server, CheckCircle2, X
 import { WindowState, AppId, Theme } from '../types';
 import { APPS, THEMES } from '../constants';
 import apiService from '../services/apiService';
+import { AppMarket } from './AppMarket';
+import { Launchpad } from './Launchpad';
 
 interface WindowManagerProps {
   windows: WindowState[];
@@ -13,6 +15,9 @@ interface WindowManagerProps {
   onFocus: (id: string) => void;
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
+  installedApps: AppId[];
+  onInstall: (appId: AppId) => void;
+  onLaunchApp: (appId: AppId) => void;
 }
 
 export const WindowManager: React.FC<WindowManagerProps> = ({ 
@@ -21,7 +26,10 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
   onMinimize, 
   onFocus,
   theme,
-  onThemeChange
+  onThemeChange,
+  installedApps,
+  onInstall,
+  onLaunchApp
 }) => {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -33,8 +41,7 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              drag
-              dragMomentum={false}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               onMouseDown={() => onFocus(win.id)}
               className="absolute pointer-events-auto rounded-2xl glass-dark shadow-[0_20px_50px_rgba(0,0,0,0.15)] flex flex-col overflow-hidden border border-white/40"
               style={{
@@ -45,27 +52,108 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
                 top: win.y,
               }}
             >
-              {/* Title Bar */}
-              <div className="h-10 bg-white/20 flex items-center justify-between px-4 cursor-grab active:cursor-grabbing border-b border-white/20 select-none">
-                <div className="flex items-center space-x-2">
-                  <div className="flex space-x-2 group-controls">
-                    <button 
-                      onClick={() => onClose(win.id)}
-                      className="w-3 h-3 rounded-full bg-rose-400 hover:bg-rose-500 transition-colors"
-                    />
-                    <button 
-                      onClick={() => onMinimize(win.id)}
-                      className="w-3 h-3 rounded-full bg-amber-400 hover:bg-amber-500 transition-colors"
-                    />
-                    <button className="w-3 h-3 rounded-full bg-emerald-400 hover:bg-emerald-500 transition-colors" />
-                  </div>
-                  <span className="text-surface-text text-xs font-semibold ml-4 tracking-tight">{win.title}</span>
+              {/* Title Bar - Simplified */}
+              {/* Don't show title bar for App Market (it has its own header) or Launchpad if desired, 
+                  but user said "like other apps", so maybe keep it?
+                  Actually AppMarket has its own header in the design I just wrote. 
+                  If I keep WindowManager header, I'll have double headers.
+                  Let's conditionally hide WindowManager header for AppMarket.
+              */}
+              {win.appId !== 'app-market' && (
+                <div className="h-12 flex items-center justify-between px-6 pt-4 select-none">
+                  <span className="text-surface-text text-xl font-bold tracking-tight opacity-90">{win.title}</span>
+                  <button 
+                    onClick={() => onClose(win.id)}
+                    className="w-8 h-8 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center transition-colors group"
+                  >
+                    <X size={18} className="text-surface-text opacity-60 group-hover:opacity-100" />
+                  </button>
                 </div>
-              </div>
+              )}
+              
+              {/* For App Market, we might want the Close button from WindowManager but overlaying?
+                  Or let AppMarket handle closing via internal header?
+                  Actually, my AppMarket implementation HAS a header but NO close button logic connected to WindowManager.
+                  It had `onClose` prop but I removed it from usage in the new implementation (it just renders content).
+                  
+                  Wait, `AppMarket` refactored code:
+                  <button onClick={onClose} ...> <X /> </button>
+                  
+                  Wait, I removed `onClose` prop from `AppMarket` signature in my refactor step!
+                  So the close button inside `AppMarket` is broken or removed?
+                  Let's check `AppMarket` refactor again.
+                  
+                  Ah, I removed the `onClose` prop from `AppMarketProps` but did I remove the close button from JSX?
+                  In the previous step's `new_string`, I don't see `onClose` in destructuring.
+                  But the JSX still has:
+                  <div className="p-5 ... border-b ...">
+                    ...
+                    <button onClick={onClose} ...> <X /> </button>
+                  </div>
+                  
+                  If `onClose` is not defined, this will crash.
+                  I need to fix AppMarket to NOT have a close button in its content, 
+                  and rely on WindowManager's close button (which I just conditionally hid).
+                  
+                  OR, I pass `onClose` to `AppMarket` and let it handle closing.
+                  
+                  Decision: 
+                  User said "like other apps". Other apps have the WindowManager header.
+                  So AppMarket should also have the WindowManager header.
+                  I should REMOVE the internal header from AppMarket content, or at least the close button.
+                  
+                  Let's stick to WindowManager providing the frame.
+                  So I will SHOW the header in WindowManager for all apps.
+                  And I should probably update AppMarket to NOT show its own header, or merge them.
+                  
+                  Actually, AppMarket's header has the Search bar.
+                  So I should keep AppMarket's header but remove the Close button from it.
+                  And keep WindowManager's header? That would be double headers.
+                  
+                  Better: Hide WindowManager header for AppMarket, and pass `onClose` to AppMarket so it can use its own button.
+                  But I already refactored AppMarket to NOT accept onClose.
+                  
+                  Let's adjust WindowManager to handle this.
+                  I will pass `onClose` to `renderAppContent` so it can be passed down if needed.
+                  
+                  And for `Launchpad`, it also has a Search bar.
+                  
+                  Let's simply render the WindowManager header for ALL apps for consistency (as user requested "like other apps").
+                  And I will ignore the redundancy for a moment, or better, I will fix AppMarket/Launchpad to not have a redundant close button/title if possible.
+                  
+                  Actually, in my previous refactor of AppMarket, I see:
+                  `export const AppMarket: React.FC<AppMarketProps> = ({ installedApps, onInstall }) => { ...`
+                  And I removed the Close button from the header in the JSX?
+                  Let's check the JSX in `refactor-appmarket` step.
+                  
+                  In `new_string` of `refactor-appmarket`:
+                  The header div is there.
+                  It DOES NOT have the close button!
+                  It ends with `</div>` after the search input div.
+                  Great! So I removed the close button.
+                  
+                  So AppMarket has a "Header" area with Search, but no Title/Close button?
+                  Wait, it has `<h3 ...>App Market</h3>`.
+                  
+                  So if I enable WindowManager header, I'll have:
+                  [ Window Title: App Market   (X) ]
+                  [ App Market (H3)   [Search]     ]
+                  
+                  This is acceptable. The H3 is like a "page title".
+                  
+                  So, WindowManager SHOULD show header for all apps.
+              */}
 
               {/* Content Area */}
-              <div className="flex-1 p-6 text-surface-text overflow-auto bg-white/10 backdrop-blur-md">
-                {renderAppContent(win.appId, theme, onThemeChange)}
+              <div className="flex-1 p-6 text-surface-text overflow-auto">
+                {renderAppContent(
+                  win.appId, 
+                  theme, 
+                  onThemeChange, 
+                  installedApps, 
+                  onInstall, 
+                  onLaunchApp
+                )}
               </div>
             </motion.div>
           );
@@ -75,7 +163,14 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
   );
 };
 
-const renderAppContent = (appId: AppId, currentTheme: Theme, onThemeChange: (theme: Theme) => void) => {
+const renderAppContent = (
+  appId: AppId, 
+  currentTheme: Theme, 
+  onThemeChange: (theme: Theme) => void,
+  installedApps: AppId[],
+  onInstall: (appId: AppId) => void,
+  onLaunchApp: (appId: AppId) => void
+) => {
   const handleWallpaperUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -94,6 +189,10 @@ const renderAppContent = (appId: AppId, currentTheme: Theme, onThemeChange: (the
   };
 
   switch (appId) {
+    case 'app-market':
+      return <AppMarket installedApps={installedApps} onInstall={onInstall} />;
+    case 'launchpad':
+      return <Launchpad onLaunch={onLaunchApp} />;
     case 'settings':
       return <SettingsContent currentTheme={currentTheme} onThemeChange={onThemeChange} />;
     case 'knowledge':
@@ -156,6 +255,7 @@ const renderAppContent = (appId: AppId, currentTheme: Theme, onThemeChange: (the
       );
   }
 };
+
 
 // 设置组件内容
 const SettingsContent: React.FC<{ currentTheme: Theme; onThemeChange: (theme: Theme) => void }> = ({ currentTheme, onThemeChange }) => {

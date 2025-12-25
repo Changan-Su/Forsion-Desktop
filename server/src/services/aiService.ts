@@ -19,6 +19,87 @@ const claudeClient = process.env.ANTHROPIC_API_KEY ? new OpenAI({
   baseURL: 'https://api.anthropic.com/v1'
 }) : null;
 
+// System prompt for OpenAI-compatible providers
+const SYSTEM_PROMPT = 'You are Forsion Assistant, an AI agent inside the Forsion Desktop environment. You help users with productivity tasks in a professional and creative manner.';
+
+/**
+ * 格式化消息为 OpenAI 兼容格式
+ */
+function formatOpenAIMessages(history: ChatHistory[], message: string, includeSystem: boolean = true) {
+  const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
+  
+  if (includeSystem) {
+    messages.push({
+      role: 'system',
+      content: SYSTEM_PROMPT
+    });
+  }
+  
+  messages.push(
+    ...history.map(h => ({
+      role: (h.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+      content: h.content
+    })),
+    { role: 'user' as const, content: message }
+  );
+  
+  return messages;
+}
+
+/**
+ * 创建 OpenAI 兼容客户端
+ */
+function createOpenAIClient(apiKey: string, baseURL?: string): OpenAI {
+  return new OpenAI({
+    apiKey,
+    baseURL
+  });
+}
+
+/**
+ * 调用 OpenAI 兼容 API（非流式）
+ */
+async function callOpenAICompatibleAPI(
+  client: OpenAI,
+  modelId: string,
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  options: { temperature?: number; maxTokens?: number } = {}
+): Promise<string> {
+  const response = await client.chat.completions.create({
+    model: modelId,
+    messages,
+    temperature: options.temperature ?? 0.7,
+    max_tokens: options.maxTokens ?? 4096
+  });
+  
+  return response.choices[0]?.message?.content || 'No response generated';
+}
+
+/**
+ * 调用 OpenAI 兼容 API（流式）
+ */
+async function* callOpenAICompatibleAPIStream(
+  client: OpenAI,
+  modelId: string,
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  options: { temperature?: number; maxTokens?: number } = {}
+): AsyncGenerator<string, void, unknown> {
+  const stream = await client.chat.completions.create({
+    model: modelId,
+    messages,
+    stream: true,
+    temperature: options.temperature ?? 0.7,
+    max_tokens: options.maxTokens ?? 4096
+  });
+
+  for await (const chunk of stream) {
+    const text = chunk.choices[0]?.delta?.content;
+    if (text) {
+      yield text;
+    }
+  }
+}
+
 export async function generateAIResponse(
   modelId: string,
   message: string,
@@ -85,26 +166,8 @@ async function generateOpenAIResponse(
   }
 
   try {
-    const messages = [
-      {
-        role: 'system' as const,
-        content: 'You are Forsion Assistant, an AI agent inside the Forsion Desktop environment. You help users with productivity tasks in a professional and creative manner.'
-      },
-      ...history.map(h => ({
-        role: h.role as 'user' | 'assistant',
-        content: h.content
-      })),
-      { role: 'user' as const, content: message }
-    ];
-
-    const response = await openaiClient.chat.completions.create({
-      model: modelId,
-      messages,
-      temperature: 0.7,
-      max_tokens: 4096
-    });
-
-    return response.choices[0]?.message?.content || 'No response generated';
+    const messages = formatOpenAIMessages(history, message);
+    return await callOpenAICompatibleAPI(openaiClient, modelId, messages);
   } catch (error: any) {
     console.error('OpenAI API Error:', error);
     throw new Error(`OpenAI API error: ${error.message}`);
@@ -121,25 +184,8 @@ async function generateDeepSeekResponse(
   }
 
   try {
-    const messages = [
-      {
-        role: 'system' as const,
-        content: 'You are Forsion Assistant, helping users with productivity tasks.'
-      },
-      ...history.map(h => ({
-        role: h.role as 'user' | 'assistant',
-        content: h.content
-      })),
-      { role: 'user' as const, content: message }
-    ];
-
-    const response = await deepseekClient.chat.completions.create({
-      model: modelId,
-      messages,
-      temperature: 0.7
-    });
-
-    return response.choices[0]?.message?.content || 'No response generated';
+    const messages = formatOpenAIMessages(history, message);
+    return await callOpenAICompatibleAPI(deepseekClient, modelId, messages);
   } catch (error: any) {
     console.error('DeepSeek API Error:', error);
     throw new Error(`DeepSeek API error: ${error.message}`);
@@ -156,28 +202,15 @@ async function generateClaudeResponse(
   }
 
   try {
-    const messages = [
-      ...history.map(h => ({
-        role: h.role as 'user' | 'assistant',
-        content: h.content
-      })),
-      { role: 'user' as const, content: message }
-    ];
-
-    const response = await claudeClient.chat.completions.create({
-      model: modelId,
-      messages,
-      max_tokens: 4096
-    });
-
-    return response.choices[0]?.message?.content || 'No response generated';
+    // Claude doesn't use system messages in the same way
+    const messages = formatOpenAIMessages(history, message, false);
+    return await callOpenAICompatibleAPI(claudeClient, modelId, messages, { maxTokens: 4096 });
   } catch (error: any) {
     console.error('Claude API Error:', error);
     throw new Error(`Claude API error: ${error.message}`);
   }
 }
 
-// 生成外部 API 响应（支持 OpenAI 兼容的 API）
 async function generateExternalResponse(
   model: any,
   message: string,
@@ -187,7 +220,6 @@ async function generateExternalResponse(
     throw new Error(`External model "${model.name}" (${model.id}) requires apiModelId and defaultBaseUrl to be configured in the database`);
   }
 
-  // 优先使用数据库中的 API key，如果没有则从环境变量获取
   const apiKey = model.apiKey 
     || process.env[`${model.id.toUpperCase().replace(/-/g, '_')}_API_KEY`] 
     || process.env.EXTERNAL_API_KEY 
@@ -198,31 +230,9 @@ async function generateExternalResponse(
   }
 
   try {
-    const client = new OpenAI({
-      apiKey,
-      baseURL: model.defaultBaseUrl
-    });
-
-    const messages = [
-      {
-        role: 'system' as const,
-        content: 'You are Forsion Assistant, an AI agent inside the Forsion Desktop environment. You help users with productivity tasks in a professional and creative manner.'
-      },
-      ...history.map(h => ({
-        role: h.role as 'user' | 'assistant',
-        content: h.content
-      })),
-      { role: 'user' as const, content: message }
-    ];
-
-    const response = await client.chat.completions.create({
-      model: model.apiModelId,
-      messages,
-      temperature: 0.7,
-      max_tokens: 4096
-    });
-
-    return response.choices[0]?.message?.content || 'No response generated';
+    const client = createOpenAIClient(apiKey, model.defaultBaseUrl);
+    const messages = formatOpenAIMessages(history, message);
+    return await callOpenAICompatibleAPI(client, model.apiModelId, messages);
   } catch (error: any) {
     console.error(`External API Error (${model.defaultBaseUrl}):`, error);
     throw new Error(`External API error: ${error.message}`);
@@ -261,92 +271,22 @@ export async function* generateAIResponseStream(
       }
     }
   } else if (model.provider === 'openai' && openaiClient) {
-    // OpenAI 流式响应
     const actualModelId = model.apiModelId || modelId;
-    const messages = [
-      {
-        role: 'system' as const,
-        content: 'You are Forsion Assistant.'
-      },
-      ...history.map(h => ({
-        role: h.role as 'user' | 'assistant',
-        content: h.content
-      })),
-      { role: 'user' as const, content: message }
-    ];
-
-    const stream = await openaiClient.chat.completions.create({
-      model: actualModelId,
-      messages,
-      stream: true,
-      temperature: 0.7
-    });
-
-    for await (const chunk of stream) {
-      const text = chunk.choices[0]?.delta?.content;
-      if (text) {
-        yield text;
-      }
-    }
+    const messages = formatOpenAIMessages(history, message);
+    yield* callOpenAICompatibleAPIStream(openaiClient, actualModelId, messages);
   } else if (model.provider === 'deepseek' && deepseekClient) {
-    // DeepSeek 流式响应
     const actualModelId = model.apiModelId || modelId;
-    const messages = [
-      {
-        role: 'system' as const,
-        content: 'You are Forsion Assistant.'
-      },
-      ...history.map(h => ({
-        role: h.role as 'user' | 'assistant',
-        content: h.content
-      })),
-      { role: 'user' as const, content: message }
-    ];
-
-    const stream = await deepseekClient.chat.completions.create({
-      model: actualModelId,
-      messages,
-      stream: true,
-      temperature: 0.7
-    });
-
-    for await (const chunk of stream) {
-      const text = chunk.choices[0]?.delta?.content;
-      if (text) {
-        yield text;
-      }
-    }
+    const messages = formatOpenAIMessages(history, message);
+    yield* callOpenAICompatibleAPIStream(deepseekClient, actualModelId, messages);
   } else if (model.provider === 'claude' && claudeClient) {
-    // Claude 流式响应
     const actualModelId = model.apiModelId || modelId;
-    const messages = [
-      ...history.map(h => ({
-        role: h.role as 'user' | 'assistant',
-        content: h.content
-      })),
-      { role: 'user' as const, content: message }
-    ];
-
-    const stream = await claudeClient.chat.completions.create({
-      model: actualModelId,
-      messages,
-      stream: true,
-      max_tokens: 4096
-    });
-
-    for await (const chunk of stream) {
-      const text = chunk.choices[0]?.delta?.content;
-      if (text) {
-        yield text;
-      }
-    }
+    const messages = formatOpenAIMessages(history, message, false);
+    yield* callOpenAICompatibleAPIStream(claudeClient, actualModelId, messages, { maxTokens: 4096 });
   } else if (model.provider === 'external') {
-    // External 流式响应
     if (!model.apiModelId || !model.defaultBaseUrl) {
       throw new Error(`External model "${model.name}" (${model.id}) requires apiModelId and defaultBaseUrl to be configured in the database`);
     }
 
-    // 优先使用数据库中的 API key，如果没有则从环境变量获取
     const apiKey = model.apiKey 
       || process.env[`${model.id.toUpperCase().replace(/-/g, '_')}_API_KEY`] 
       || process.env.EXTERNAL_API_KEY 
@@ -356,40 +296,12 @@ export async function* generateAIResponseStream(
       throw new Error(`API key not configured for external model ${model.id}. Please configure it in the database (api_key field) or set environment variable.`);
     }
 
-    const client = new OpenAI({
-      apiKey,
-      baseURL: model.defaultBaseUrl
-    });
-
-    const messages = [
-      {
-        role: 'system' as const,
-        content: 'You are Forsion Assistant.'
-      },
-      ...history.map(h => ({
-        role: h.role as 'user' | 'assistant',
-        content: h.content
-      })),
-      { role: 'user' as const, content: message }
-    ];
-
-    const stream = await client.chat.completions.create({
-      model: model.apiModelId,
-      messages,
-      stream: true,
-      temperature: 0.7
-    });
-
-    for await (const chunk of stream) {
-      const text = chunk.choices[0]?.delta?.content;
-      if (text) {
-        yield text;
-      }
-    }
+    const client = createOpenAIClient(apiKey, model.defaultBaseUrl);
+    const messages = formatOpenAIMessages(history, message);
+    yield* callOpenAICompatibleAPIStream(client, model.apiModelId, messages);
   } else {
     // 对于不支持流式的模型，返回完整响应
     const response = await generateAIResponse(modelId, message, history);
     yield response;
   }
 }
-

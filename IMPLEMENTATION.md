@@ -1,296 +1,452 @@
-# Forsion Desktop - Full Stack Implementation
+# Forsion Desktop - API 文档
 
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
-
-一个现代化、全栈的 AI 桌面应用，集成 MySQL 数据库、用户认证、多模型 AI 对话功能。
-
-## ✨ 主要特性
-
-### 前端
-- 🎨 精美的 macOS 风格桌面界面
-- 💬 AI 聊天助手，支持流式响应
-- 🔄 会话管理（创建、删除、切换）
-- 🤖 多 AI 模型选择（Gemini, OpenAI, DeepSeek, Claude）
-- 👤 用户认证系统（登录/注册）
-- 🎭 主题切换功能
-- 📱 响应式设计
-
-### 后端
-- 🗄️ MySQL 数据库集成
-- 🔐 JWT 认证
-- 📝 完整的 RESTful API
-- 💾 聊天历史持久化
-- 🌊 SSE 流式响应
-- 🛡️ 密码加密（bcrypt）
-
-## 🚀 快速开始
-
-### 前置要求
-
-- Node.js 18+
-- MySQL 8.0+
-- npm 或 yarn
-
-### 1. 数据库设置
-
-```sql
--- 登录 MySQL
-mysql -u root -p
-
--- 创建数据库
-CREATE DATABASE forsion_desktop CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- 使用数据库
-USE forsion_desktop;
-```
-
-数据库表将在首次启动后端服务时自动创建。
-
-### 2. 后端设置
-
-```bash
-# 进入后端目录
-cd server
-
-# 安装依赖
-npm install
-
-# 配置环境变量
-cp .env.example .env
-# 编辑 .env 文件，设置数据库连接和 API 密钥
-
-# 启动开发服务器
-npm run dev
-```
-
-后端服务器将在 `http://localhost:3001` 运行。
-
-### 3. 前端设置
-
-```bash
-# 在项目根目录
-npm install
-
-# 创建 .env.local 文件
-echo "GEMINI_API_KEY=your_gemini_api_key" > .env.local
-echo "VITE_API_URL=http://localhost:3001" >> .env.local
-
-# 启动开发服务器
-npm run dev
-```
-
-前端应用将在 `http://localhost:3000` 运行。
-
-## 📖 环境变量配置
-
-### 后端 (server/.env)
-
-```env
-# 数据库配置
-MYSQL_HOST=localhost
-MYSQL_PORT=3306
-MYSQL_USER=root
-MYSQL_PASSWORD=your_password
-MYSQL_DATABASE=forsion_desktop
-
-# JWT 配置
-JWT_SECRET=your-super-secret-jwt-key
-JWT_EXPIRES_IN=7d
-
-# 服务器配置
-PORT=3001
-NODE_ENV=development
-
-# CORS 配置
-CORS_ORIGIN=http://localhost:3000
-
-# AI 模型 API 密钥
-GEMINI_API_KEY=your_gemini_api_key
-
-# 可选：其他 AI 模型
-OPENAI_API_KEY=your_openai_api_key
-DEEPSEEK_API_KEY=your_deepseek_api_key
-ANTHROPIC_API_KEY=your_anthropic_api_key
-```
-
-### 前端 (.env.local)
-
-```env
-GEMINI_API_KEY=your_gemini_api_key
-VITE_API_URL=http://localhost:3001
-```
-
-## 🏗️ 项目结构
-
-```
-Forsion-Desktop/
-├── components/              # React 组件
-│   ├── AIChat.tsx          # AI 聊天组件
-│   ├── LoginModal.tsx      # 登录模态框
-│   ├── Dock.tsx            # 底部 Dock
-│   └── ...
-├── services/               # 前端服务层
-│   ├── apiService.ts       # API 基础服务
-│   ├── authService.ts      # 认证服务
-│   ├── chatService.ts      # 聊天服务
-│   └── modelService.ts     # 模型服务
-├── server/                 # 后端服务
-│   ├── src/
-│   │   ├── index.ts        # 服务器入口
-│   │   ├── routes/         # API 路由
-│   │   │   ├── auth.ts     # 认证路由
-│   │   │   ├── chat.ts     # 聊天路由
-│   │   │   ├── sessions.ts # 会话路由
-│   │   │   ├── messages.ts # 消息路由
-│   │   │   └── settings.ts # 设置路由
-│   │   ├── services/       # 业务逻辑
-│   │   │   ├── authService.ts
-│   │   │   ├── aiService.ts
-│   │   │   ├── sessionService.ts
-│   │   │   ├── messageService.ts
-│   │   │   └── modelService.ts
-│   │   ├── middleware/     # 中间件
-│   │   │   └── auth.ts
-│   │   └── db/             # 数据库
-│   │       ├── connection.ts
-│   │       └── schema.sql
-│   ├── package.json
-│   └── tsconfig.json
-├── App.tsx                 # 主应用组件
-├── types.ts                # TypeScript 类型
-└── package.json
-```
+本文档详细说明了 Forsion Desktop 的后端 API 接口。
 
 ## 🔌 API 端点
 
 ### 认证 API
 
-- `POST /api/auth/register` - 用户注册
-- `POST /api/auth/login` - 用户登录
-- `GET /api/auth/me` - 获取当前用户信息
-- `POST /api/auth/logout` - 登出
+所有认证端点不需要 JWT token。
+
+#### POST /api/auth/register
+
+用户注册
+
+**请求体:**
+```json
+{
+  "username": "string",
+  "password": "string",
+  "email": "string"
+}
+```
+
+**响应:**
+```json
+{
+  "token": "jwt_token",
+  "user": {
+    "id": 1,
+    "username": "string",
+    "email": "string",
+    "role": "user"
+  }
+}
+```
+
+#### POST /api/auth/login
+
+用户登录
+
+**请求体:**
+```json
+{
+  "username": "string",
+  "password": "string"
+}
+```
+
+**响应:**
+```json
+{
+  "token": "jwt_token",
+  "user": {
+    "id": 1,
+    "username": "string",
+    "email": "string",
+    "role": "user"
+  }
+}
+```
+
+#### GET /api/auth/me
+
+获取当前用户信息（需要认证）
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**响应:**
+```json
+{
+  "user": {
+    "id": 1,
+    "username": "string",
+    "email": "string",
+    "role": "user"
+  }
+}
+```
 
 ### 聊天 API
 
-- `POST /api/chat` - 发送消息（支持流式响应）
-- `GET /api/chat/models` - 获取可用模型列表
+#### POST /api/chat
+
+发送消息（支持流式响应）
+
+**Headers:**
+```
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+**请求体:**
+```json
+{
+  "message": "string",
+  "sessionId": 1,  // 可选，如果不存在则创建新会话
+  "model": "string",  // 可选，模型ID
+  "stream": true  // 是否使用流式响应
+}
+```
+
+**流式响应 (SSE):**
+```
+data: {"chunk": "Hello"}
+
+data: {"chunk": " world"}
+
+data: {"done": true, "sessionId": 1, "messageId": 1}
+```
+
+**非流式响应:**
+```json
+{
+  "content": "完整的响应内容",
+  "model": "model_id",
+  "sessionId": 1,
+  "messageId": 1
+}
+```
+
+#### GET /api/chat/models
+
+获取可用模型列表（需要认证）
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**查询参数:**
+- `refresh` (boolean, 可选): 强制刷新模型列表
+
+**响应:**
+```json
+{
+  "models": [
+    {
+      "id": "string",
+      "name": "string",
+      "provider": "gemini|openai|deepseek|claude|external",
+      "description": "string",
+      "enabled": true,
+      "icon": "string",
+      "avatar": "string|null",
+      "apiModelId": "string|null",
+      "defaultBaseUrl": "string|null"
+    }
+  ]
+}
+```
 
 ### 会话 API
 
-- `GET /api/sessions` - 获取所有会话
-- `POST /api/sessions` - 创建新会话
-- `GET /api/sessions/:id` - 获取会话详情
-- `PUT /api/sessions/:id` - 更新会话
-- `DELETE /api/sessions/:id` - 删除会话
+所有会话端点需要认证。
+
+#### GET /api/sessions
+
+获取当前用户的所有会话
+
+**响应:**
+```json
+{
+  "sessions": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "title": "string",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+#### POST /api/sessions
+
+创建新会话
+
+**请求体:**
+```json
+{
+  "title": "string"  // 可选
+}
+```
+
+**响应:**
+```json
+{
+  "session": {
+    "id": 1,
+    "user_id": 1,
+    "title": "string",
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+#### GET /api/sessions/:id
+
+获取会话详情
+
+**响应:**
+```json
+{
+  "session": {
+    "id": 1,
+    "user_id": 1,
+    "title": "string",
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+#### PUT /api/sessions/:id
+
+更新会话（主要是标题）
+
+**请求体:**
+```json
+{
+  "title": "新的标题"
+}
+```
+
+**响应:**
+```json
+{
+  "session": {
+    "id": 1,
+    "user_id": 1,
+    "title": "新的标题",
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+#### DELETE /api/sessions/:id
+
+删除会话
+
+**响应:**
+```json
+{
+  "message": "Session deleted"
+}
+```
 
 ### 消息 API
 
-- `GET /api/sessions/:sessionId/messages` - 获取会话消息
-- `POST /api/sessions/:sessionId/messages` - 保存消息
-- `DELETE /api/messages/:id` - 删除消息
+所有消息端点需要认证。
+
+#### GET /api/sessions/:sessionId/messages
+
+获取会话的所有消息
+
+**响应:**
+```json
+{
+  "messages": [
+    {
+      "id": 1,
+      "session_id": 1,
+      "role": "user|assistant",
+      "content": "string",
+      "model_used": "string",
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+#### POST /api/sessions/:sessionId/messages
+
+保存消息
+
+**请求体:**
+```json
+{
+  "role": "user|assistant",
+  "content": "string",
+  "modelUsed": "string"  // 可选
+}
+```
+
+**响应:**
+```json
+{
+  "message": {
+    "id": 1,
+    "session_id": 1,
+    "role": "user",
+    "content": "string",
+    "model_used": "string",
+    "created_at": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+#### DELETE /api/messages/:id
+
+删除消息
+
+**响应:**
+```json
+{
+  "message": "Message deleted"
+}
+```
 
 ### 设置 API
 
-- `GET /api/settings` - 获取用户设置
-- `PUT /api/settings` - 更新用户设置
+所有设置端点需要认证。
 
-## 🎯 使用说明
+#### GET /api/settings
 
-### 1. 首次使用
+获取用户设置
 
-1. 启动后端和前端服务
-2. 打开浏览器访问 `http://localhost:3000`
-3. 点击右上角的账户设置按钮
-4. 注册新账户或登录
-
-### 2. 使用 AI 聊天
-
-- 按 `Ctrl+K` (Windows) 或 `⌘K` (Mac) 打开 AI 聊天
-- 选择想要使用的 AI 模型
-- 输入消息并发送
-- 查看流式响应
-
-### 3. 会话管理
-
-- 点击聊天窗口右上角的消息图标查看所有会话
-- 点击 + 按钮创建新会话
-- 点击会话切换对话
-- 悬停在会话上并点击垃圾桶图标删除会话
-
-### 4. 游客模式
-
-- 未登录用户可以继续使用基础功能
-- 使用本地 Gemini API（不保存历史）
-- 登录后可享受完整功能（会话持久化、多模型等）
-
-## 🔒 安全性
-
-- 密码使用 bcrypt 加密存储
-- JWT token 用于用户认证
-- API 密钥不存储在数据库中
-- CORS 配置限制跨域访问
-- SQL 注入防护（参数化查询）
-
-## 🛠️ 开发
-
-### 后端开发
-
-```bash
-cd server
-npm run dev  # 使用 tsx watch 热重载
+**响应:**
+```json
+{
+  "settings": {
+    "id": 1,
+    "user_id": 1,
+    "preferred_model": "model_id",
+    "theme_preferences": {},
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+}
 ```
 
-### 前端开发
+#### PUT /api/settings
 
-```bash
-npm run dev  # Vite 热重载
+更新用户设置
+
+**请求体:**
+```json
+{
+  "preferred_model": "model_id",  // 可选
+  "theme_preferences": {}  // 可选
+}
 ```
 
-### 构建生产版本
+**响应:**
+```json
+{
+  "settings": {
+    "id": 1,
+    "user_id": 1,
+    "preferred_model": "model_id",
+    "theme_preferences": {},
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+}
+```
 
-```bash
-# 前端
-npm run build
+### 健康检查
 
-# 后端
-cd server
-npm run build
+#### GET /health
+
+检查服务器和数据库状态
+
+**响应:**
+```json
+{
+  "status": "ok",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "database": "connected|disconnected|error"
+}
 ```
 
 ## 📝 数据库架构
 
 ### users 表
-- 用户信息
-- 加密密码
-- 角色管理
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT | 主键 |
+| username | VARCHAR(50) | 用户名（唯一） |
+| email | VARCHAR(100) | 邮箱（唯一） |
+| password_hash | VARCHAR(255) | 加密密码 |
+| role | ENUM('user', 'admin') | 角色 |
+| created_at | TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | 更新时间 |
 
 ### sessions 表
-- 聊天会话
-- 关联用户
-- 创建/更新时间
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT | 主键 |
+| user_id | INT | 用户ID（外键） |
+| title | VARCHAR(255) | 会话标题 |
+| created_at | TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | 更新时间 |
 
 ### messages 表
-- 聊天消息
-- 关联会话
-- 使用的模型
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT | 主键 |
+| session_id | INT | 会话ID（外键） |
+| role | ENUM('user', 'assistant') | 消息角色 |
+| content | TEXT | 消息内容 |
+| model_used | VARCHAR(100) | 使用的模型 |
+| created_at | TIMESTAMP | 创建时间 |
 
 ### user_settings 表
-- 用户偏好
-- 默认模型
-- 主题设置
 
-## 🤝 贡献
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT | 主键 |
+| user_id | INT | 用户ID（外键） |
+| preferred_model | VARCHAR(100) | 偏好模型 |
+| theme_preferences | JSON | 主题偏好 |
+| created_at | TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | 更新时间 |
 
-欢迎提交 Issue 和 Pull Request！
+### global_models 表
 
-## 📄 许可证
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | VARCHAR(100) | 主键（模型ID） |
+| name | VARCHAR(255) | 模型名称 |
+| provider | ENUM('gemini', 'openai', 'deepseek', 'claude', 'external') | 提供商 |
+| description | TEXT | 描述 |
+| enabled | BOOLEAN | 是否启用 |
+| icon | VARCHAR(255) | 图标URL |
+| avatar | VARCHAR(255) | 头像URL |
+| api_model_id | VARCHAR(255) | API模型ID |
+| default_base_url | VARCHAR(255) | 默认API URL |
 
-MIT License
+## 🔒 安全性
 
-## 🙏 致谢
+- 密码使用 bcrypt 加密存储（10 rounds）
+- JWT token 用于用户认证（HS256 算法）
+- API 密钥存储在环境变量中，不暴露给前端
+- CORS 配置限制跨域访问
+- SQL 注入防护（使用参数化查询）
+- 所有 API 请求（除了认证端点）需要 JWT token
 
-- 参考项目: [Forsion-AI-Studio](https://github.com/Changan-Su/Forsion-AI-Studio)
-- AI 模型: Google Gemini, OpenAI, DeepSeek, Anthropic Claude
+## 📚 相关文档
 
+- [README.md](./README.md) - 快速开始和项目概述
+- [ARCHITECTURE.md](./ARCHITECTURE.md) - 系统架构设计
+- [DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md) - 部署检查清单

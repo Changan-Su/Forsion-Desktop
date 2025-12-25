@@ -1,96 +1,94 @@
+/**
+ * Credit Service - 积分服务
+ * 与 Forsion Backend Service 的积分系统集成
+ */
+
 import apiService from './apiService';
 
-export interface UserCredits {
-  id: string;
-  userId: string;
+export interface CreditBalance {
+  userId: string | number;
   balance: number;
   totalEarned: number;
   totalSpent: number;
-  createdAt: string;
   updatedAt: string;
 }
 
 export interface CreditTransaction {
   id: string;
-  userId: string;
-  type: 'initial' | 'usage' | 'refund' | 'bonus' | 'adjustment';
+  type: 'usage' | 'initial' | 'bonus' | 'refund';
   amount: number;
   balanceBefore: number;
   balanceAfter: number;
   description?: string;
-  referenceId?: string;
   createdAt: string;
 }
 
-export interface CreditCheckResult {
-  sufficient: boolean;
-  required: number;
+export interface CreditTransactionsResponse {
+  transactions: CreditTransaction[];
+  total: number;
+}
+
+// Backend Service 返回的原始格式
+interface BackendCreditBalance {
+  userId?: string;
+  balance?: number;
+  totalEarned?: number;
+  totalSpent?: number;
+  updatedAt?: string;
+  // 可能的其他字段名格式
+  user_id?: string;
+  total_earned?: number;
+  total_spent?: number;
+  updated_at?: string;
 }
 
 export class CreditService {
   /**
-   * 获取用户积分余额
+   * 获取积分余额
    */
-  static async getCreditBalance(): Promise<number> {
-    const response = await apiService.get<{ balance: number }>('/api/credits/balance');
-    return response.balance;
-  }
-
-  /**
-   * 获取用户积分账户详情
-   */
-  static async getCreditAccount(): Promise<UserCredits> {
-    const response = await apiService.get<{ account: UserCredits }>('/api/credits/account');
-    return response.account;
-  }
-
-  /**
-   * 获取积分交易记录
-   */
-  static async getTransactionHistory(limit: number = 50): Promise<CreditTransaction[]> {
-    const response = await apiService.get<{ transactions: CreditTransaction[] }>(`/api/credits/transactions?limit=${limit}`);
-    return response.transactions;
-  }
-
-  /**
-   * 检查积分是否充足
-   */
-  static async checkSufficientCredits(amount: number): Promise<CreditCheckResult> {
-    const response = await apiService.post<CreditCheckResult>('/api/credits/check', { amount });
-    return response;
-  }
-
-  // 本地缓存
-  private static cachedBalance: number | null = null;
-  private static balanceCacheTime: number | null = null;
-  private static readonly CACHE_DURATION = 30 * 1000; // 30秒缓存
-
-  /**
-   * 获取积分余额（带缓存）
-   */
-  static async getCreditBalanceWithCache(): Promise<number> {
-    const now = Date.now();
-
-    if (this.cachedBalance !== null &&
-        this.balanceCacheTime !== null &&
-        (now - this.balanceCacheTime) < this.CACHE_DURATION) {
-      return this.cachedBalance;
+  static async getBalance(): Promise<CreditBalance> {
+    try {
+      const response = await apiService.get<BackendCreditBalance>('/api/credits/balance');
+      
+      // 映射字段名（支持驼峰和下划线格式）
+      const creditBalance: CreditBalance = {
+        userId: response.userId || response.user_id || '',
+        balance: response.balance ?? 0,
+        totalEarned: response.totalEarned ?? response.total_earned ?? 0,
+        totalSpent: response.totalSpent ?? response.total_spent ?? 0,
+        updatedAt: response.updatedAt || response.updated_at || new Date().toISOString(),
+      };
+      
+      return creditBalance;
+    } catch (error: any) {
+      console.error('[CreditService] Failed to get balance:', error);
+      throw error;
     }
-
-    const balance = await this.getCreditBalance();
-    this.cachedBalance = balance;
-    this.balanceCacheTime = now;
-
-    return balance;
   }
 
   /**
-   * 清除余额缓存
+   * 获取积分交易历史
    */
-  static clearBalanceCache(): void {
-    this.cachedBalance = null;
-    this.balanceCacheTime = null;
+  static async getTransactions(options?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<CreditTransactionsResponse> {
+    try {
+      const params = new URLSearchParams();
+      if (options?.limit) params.append('limit', options.limit.toString());
+      if (options?.offset) params.append('offset', options.offset.toString());
+
+      const queryString = params.toString();
+      const endpoint = `/api/credits/transactions${queryString ? `?${queryString}` : ''}`;
+      
+      const response = await apiService.get<CreditTransactionsResponse>(endpoint);
+      return response;
+    } catch (error: any) {
+      console.error('[CreditService] Failed to get transactions:', error);
+      throw error;
+    }
   }
 }
 
 export default CreditService;
+

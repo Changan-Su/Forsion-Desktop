@@ -8,9 +8,11 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5分钟缓存
 
 /**
  * 从数据库加载模型列表
+ * 只返回数据库中实际存在的模型，不返回任何硬编码的fallback模型
  */
 export async function loadModelsFromDatabase(): Promise<AIModel[]> {
   try {
+    console.log('[ModelService] Querying database for models from global_models table...');
     const [rows] = await pool.query(`
       SELECT
         id, name, provider, description, icon, avatar,
@@ -20,9 +22,15 @@ export async function loadModelsFromDatabase(): Promise<AIModel[]> {
       ORDER BY name
     `);
 
-    console.log(`[ModelService] Loaded ${(rows as any[]).length} models from database`);
+    const modelRows = rows as any[];
+    console.log(`[ModelService] Database query returned ${modelRows.length} models`);
 
-    const models: AIModel[] = (rows as any[]).map(row => {
+    if (modelRows.length === 0) {
+      console.warn('[ModelService] WARNING: No enabled models found in database!');
+      return [];
+    }
+
+    const models: AIModel[] = modelRows.map(row => {
       const model = {
         id: row.id,
         name: row.name,
@@ -35,35 +43,50 @@ export async function loadModelsFromDatabase(): Promise<AIModel[]> {
         defaultBaseUrl: row.default_base_url || null,
         apiKey: row.api_key || null // 从数据库读取 API key
       };
-      console.log(`[ModelService] Model: ${model.id} - ${model.name} (${model.provider})${model.apiKey ? ' [has API key]' : ' [no API key]'}`);
+      console.log(`[ModelService] Model from DB: ${model.id} - ${model.name} (${model.provider})`);
       return model;
     });
 
-    console.log(`[ModelService] Returning ${models.length} models`);
+    console.log(`[ModelService] Successfully loaded ${models.length} models from database`);
     return models;
   } catch (error) {
-    console.error('[ModelService] Failed to load models from database:', error);
-    // 返回默认模型作为fallback
-    return getFallbackModels();
+    console.error('[ModelService] CRITICAL: Failed to load models from database:', error);
+    if (error instanceof Error) {
+      console.error('[ModelService] Error message:', error.message);
+      console.error('[ModelService] Error stack:', error.stack);
+    }
+    // 不返回fallback模型，返回空数组，让前端知道数据库连接失败
+    // 这样用户就能知道模型列表没有正确同步
+    throw new Error(`Failed to load models from database: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
 /**
  * 获取可用模型列表（带缓存）
+ * 只返回数据库中的模型，不返回任何fallback模型
  */
 export async function getAvailableModels(): Promise<AIModel[]> {
   const now = Date.now();
 
   // 检查缓存是否有效
   if (cachedModels && cacheTimestamp && (now - cacheTimestamp) < CACHE_DURATION) {
+    console.log(`[ModelService] Returning ${cachedModels.length} models from cache`);
     return cachedModels;
   }
 
   // 从数据库加载并缓存
-  cachedModels = await loadModelsFromDatabase();
-  cacheTimestamp = now;
-
-  return cachedModels;
+  console.log('[ModelService] Cache expired or not available, loading from database...');
+  try {
+    cachedModels = await loadModelsFromDatabase();
+    cacheTimestamp = now;
+    console.log(`[ModelService] Cached ${cachedModels.length} models from database`);
+    return cachedModels;
+  } catch (error) {
+    // 如果数据库加载失败，清除缓存并抛出错误
+    cachedModels = null;
+    cacheTimestamp = null;
+    throw error;
+  }
 }
 
 /**

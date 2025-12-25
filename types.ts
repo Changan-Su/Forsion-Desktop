@@ -1,5 +1,5 @@
 
-export type AppId = 'knowledge' | 'calendar' | 'workspace' | 'recipe' | 'studio' | 'settings' | 'notes';
+export type AppId = 'knowledge' | 'calendar' | 'workspace' | 'recipe' | 'studio' | 'settings' | 'notes' | 'app-market' | 'launchpad';
 
 export interface Theme {
   id: string;
@@ -34,37 +34,15 @@ export interface DesktopApp {
   color: string;
 }
 
+import type { User, Session, AIModel } from './types/shared';
+
+export type { User, Session, AIModel };
+
+// ChatMessage is frontend-specific (uses timestamp instead of created_at)
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
   id?: number;
   model_used?: string;
-}
-
-export interface User {
-  id: number;
-  username: string;
-  email: string;
-  role: 'admin' | 'user';
-}
-
-export interface Session {
-  id: number;
-  user_id: number;
-  title: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface AIModel {
-  id: string;
-  name: string;
-  provider: 'gemini' | 'openai' | 'deepseek' | 'claude' | 'external';
-  description?: string;
-  enabled: boolean;
-  icon?: string;
-  avatar?: string | null;
-  apiModelId?: string | null;
-  defaultBaseUrl?: string | null;
 }

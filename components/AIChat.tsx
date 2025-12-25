@@ -2,18 +2,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Sparkles, Command, ChevronDown, MessageSquare, Trash2, Plus } from 'lucide-react';
-import { generateChatResponse } from '../services/geminiService';
 import { ChatMessage, Session, AIModel } from '../types';
 import ChatService from '../services/chatService';
 import ModelService from '../services/modelService';
 import AuthService from '../services/authService';
+import Avatar from './Avatar';
 
 interface AIChatProps {
   isOpen: boolean;
   onClose: () => void;
+  hasAppOpen?: boolean;
 }
 
-export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose }) => {
+export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, hasAppOpen = false }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: 'assistant', content: "Hello! I'm your Forsion Assistant. How can I help you navigate these waters today?", timestamp: Date.now() }
   ]);
@@ -33,6 +34,27 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose }) => {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isOpen]);
+
+  const [layoutConfig, setLayoutConfig] = useState({ x: 0, width: 680 });
+
+  useEffect(() => {
+    const updateLayout = () => {
+      // If app is open, AI Chat should always stay on the right side to avoid overlapping
+      if (hasAppOpen) {
+        const screenWidth = window.innerWidth;
+        const targetX = (screenWidth * 0.25) + 170;
+        const targetWidth = Math.min((screenWidth * 0.5) - 380, 500); // 50vw - 380px, max 500
+        
+        setLayoutConfig({ x: targetX, width: Math.max(targetWidth, 300) }); // Min width 300
+      } else {
+        setLayoutConfig({ x: 0, width: 680 });
+      }
+    };
+
+    updateLayout();
+    window.addEventListener('resize', updateLayout);
+    return () => window.removeEventListener('resize', updateLayout);
+  }, [hasAppOpen, isOpen]);
 
   // 加载会话消息
   const loadSession = async (sessionId: number) => {
@@ -62,17 +84,16 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose }) => {
 
         if (authenticated) {
           try {
+            // 清除模型缓存，确保从数据库获取最新模型列表
+            ModelService.clearCache();
+            
             // 加载会话列表
             const sessionsList = await ChatService.getSessions();
             setSessions(sessionsList);
 
-            // 加载可用模型
-            console.log('[AIChat] Starting to load models...');
-            const models = await ModelService.getAvailableModels();
-            console.log('[AIChat] Loaded models:', models);
-            console.log('[AIChat] Models count:', models.length);
+            // 加载可用模型（从数据库获取最新列表，强制刷新）
+            const models = await ModelService.getAvailableModels(true);
             if (models.length === 0) {
-              console.warn('[AIChat] WARNING: No models loaded! Check API response and authentication.');
             }
             setAvailableModels(models);
 
@@ -155,18 +176,13 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose }) => {
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
-    // 如果未认证，使用原始的Gemini服务
+    // 需要认证才能使用AI功能
     if (!isAuthenticated) {
-      const userMsg: ChatMessage = { role: 'user', content: input, timestamp: Date.now() };
-      setMessages(prev => [...prev, userMsg]);
-      setInput('');
-      setIsLoading(true);
-
-      const history = messages.map(m => ({ role: m.role, content: m.content }));
-      const response = await generateChatResponse(history, input);
-      
-      setMessages(prev => [...prev, { role: 'assistant', content: response, timestamp: Date.now() }]);
-      setIsLoading(false);
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: '请先登录以使用AI聊天功能。点击右上角的用户图标进行登录。', 
+        timestamp: Date.now() 
+      }]);
       return;
     }
 
@@ -251,7 +267,10 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose }) => {
         initial={false}
         animate={{ 
           height: isOpen ? 560 : 84,
-          y: isOpen ? 0 : 180 
+          y: isOpen ? 0 : 180,
+          x: layoutConfig.x,
+          width: layoutConfig.width,
+          scale: hasAppOpen && !isOpen ? 0.9 : 1
         }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         className="w-full max-w-[680px] rounded-[32px] flex flex-col overflow-hidden shadow-[0_32px_80px_-20px_rgba(0,0,0,0.2)] border border-white/40 pointer-events-auto glass-dark"
@@ -328,9 +347,15 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose }) => {
                   {availableModels.map(model => (
                     <button
                       key={model.id}
-                      onClick={() => {
+                      onClick={async () => {
                         setSelectedModel(model.id);
                         setShowModels(false);
+                        // 保存选择的模型到用户设置
+                        try {
+                          await ModelService.setPreferredModel(model.id);
+                        } catch (error) {
+                          console.error('[AIChat] Failed to save preferred model:', error);
+                        }
                       }}
                       className={`w-full text-left px-4 py-2.5 rounded-xl transition-colors ${
                         selectedModel === model.id 
@@ -387,7 +412,15 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose }) => {
               {/* Messages */}
               <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
                 {messages.map((m, i) => (
-                  <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div key={i} className={`flex items-start gap-3 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    {/* 助手头像 (左侧) */}
+                    {m.role === 'assistant' && (
+                      <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center flex-shrink-0 shadow-lg">
+                        <Sparkles size={16} className="text-white" />
+                      </div>
+                    )}
+                    
+                    {/* 消息内容 */}
                     <div className={`max-w-[85%] p-4 rounded-[22px] text-[15px] leading-relaxed shadow-sm ${
                       m.role === 'user' 
                         ? 'bg-accent text-white rounded-tr-none font-medium' 
@@ -395,10 +428,23 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose }) => {
                     }`}>
                       {m.content}
                     </div>
+                    
+                    {/* 用户头像 (右侧) */}
+                    {m.role === 'user' && (
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <Avatar user={AuthService.getUser()} size="sm" />
+                        <span className="text-xs text-surface-text opacity-50">
+                          {AuthService.getUser()?.nickname || AuthService.getUser()?.username || '用户'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ))}
                 {isLoading && (
-                  <div className="flex justify-start">
+                  <div className="flex justify-start items-start gap-3">
+                    <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center flex-shrink-0 shadow-lg">
+                      <Sparkles size={16} className="text-white" />
+                    </div>
                     <div className="bg-white/40 p-4 rounded-[20px] rounded-tl-none flex space-x-1.5 items-center border border-white/50">
                       <div className="w-1.5 h-1.5 bg-accent opacity-60 rounded-full animate-bounce" />
                       <div className="w-1.5 h-1.5 bg-accent opacity-60 rounded-full animate-bounce [animation-delay:0.2s]" />

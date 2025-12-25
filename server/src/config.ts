@@ -5,14 +5,14 @@ export const config = {
     port: parseInt(process.env.DB_PORT || process.env.MYSQL_PORT || '3306'),
     user: process.env.DB_USER || process.env.MYSQL_USER || 'root',
     password: process.env.DB_PASSWORD || process.env.MYSQL_PASSWORD || 'rootpassword',
-    database: process.env.DB_NAME || process.env.MYSQL_DATABASE || 'forsion_ai_studio',
+    database: process.env.DB_NAME || process.env.MYSQL_DATABASE || 'forsion_desktop',
   },
   jwt: {
     secret: process.env.JWT_SECRET || 'your_jwt_secret_key_here',
   },
   server: {
-    port: parseInt(process.env.PORT || '3002'),
-    corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:2012',
+    port: parseInt(process.env.PORT || '3001'),
+    corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   },
   ai: {
     openaiApiKey: process.env.OPENAI_API_KEY || '',

@@ -7,7 +7,9 @@ import {
   Utensils, 
   Palette, 
   Settings, 
-  StickyNote 
+  StickyNote,
+  ShoppingBag,
+  LayoutGrid
 } from 'lucide-react';
 import { DesktopApp, Theme } from './types';
 
@@ -51,6 +53,8 @@ export const APPS: DesktopApp[] = [
   { id: 'recipe', name: 'Recipe', icon: 'Utensils', color: 'bg-accent' },
   { id: 'studio', name: 'Studio', icon: 'Palette', color: 'bg-accent' }, 
   { id: 'notes', name: 'Quick Notes', icon: 'StickyNote', color: 'bg-white/20' },
+  { id: 'app-market', name: 'App Market', icon: 'ShoppingBag', color: 'bg-white/20' },
+  { id: 'launchpad', name: 'Launchpad', icon: 'LayoutGrid', color: 'bg-white/20' },
   { id: 'settings', name: 'Settings', icon: 'Settings', color: 'bg-accent' },
 ];
 
@@ -61,5 +65,7 @@ export const ICON_MAP: Record<string, React.ReactNode> = {
   Utensils: <Utensils className="w-full h-full text-white" />,
   Palette: <Palette className="w-full h-full text-white" />,
   StickyNote: <StickyNote className="w-full h-full text-accent" />,
+  ShoppingBag: <ShoppingBag className="w-full h-full text-white" />,
+  LayoutGrid: <LayoutGrid className="w-full h-full text-white" />,
   Settings: <Settings className="w-full h-full text-white" />,
 };
