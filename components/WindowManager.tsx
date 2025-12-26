@@ -2,11 +2,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Minus, Maximize2, Image as ImageIcon, Check, Server, CheckCircle2, XCircle, Loader } from 'lucide-react';
-import { WindowState, AppId, Theme } from '../types';
+import { WindowState, AppId, Theme, ForsionApp } from '../types';
 import { APPS, THEMES } from '../constants';
 import apiService from '../services/apiService';
 import { AppMarket } from './AppMarket';
 import { Launchpad } from './Launchpad';
+import { ForsionDeskMarket } from './ForsionDeskMarket';
 
 interface WindowManagerProps {
   windows: WindowState[];
@@ -18,6 +19,7 @@ interface WindowManagerProps {
   installedApps: AppId[];
   onInstall: (appId: AppId) => void;
   onLaunchApp: (appId: AppId) => void;
+  onLaunchForsionApp?: (app: ForsionApp) => void;
 }
 
 export const WindowManager: React.FC<WindowManagerProps> = ({ 
@@ -29,7 +31,8 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
   onThemeChange,
   installedApps,
   onInstall,
-  onLaunchApp
+  onLaunchApp,
+  onLaunchForsionApp
 }) => {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -59,7 +62,7 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
                   If I keep WindowManager header, I'll have double headers.
                   Let's conditionally hide WindowManager header for AppMarket.
               */}
-              {win.appId !== 'app-market' && (
+              {win.appId !== 'app-market' && win.appId !== 'forsion-desk-market' && (
                 <div className="h-12 flex items-center justify-between px-6 pt-4 select-none">
                   <span className="text-surface-text text-xl font-bold tracking-tight opacity-90">{win.title}</span>
                   <button 
@@ -152,7 +155,8 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
                   onThemeChange, 
                   installedApps, 
                   onInstall, 
-                  onLaunchApp
+                  onLaunchApp,
+                  onLaunchForsionApp
                 )}
               </div>
             </motion.div>
@@ -169,7 +173,8 @@ const renderAppContent = (
   onThemeChange: (theme: Theme) => void,
   installedApps: AppId[],
   onInstall: (appId: AppId) => void,
-  onLaunchApp: (appId: AppId) => void
+  onLaunchApp: (appId: AppId) => void,
+  onLaunchForsionApp?: (app: ForsionApp) => void
 ) => {
   const handleWallpaperUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -191,8 +196,10 @@ const renderAppContent = (
   switch (appId) {
     case 'app-market':
       return <AppMarket installedApps={installedApps} onInstall={onInstall} />;
+    case 'forsion-desk-market':
+      return <ForsionDeskMarket />;
     case 'launchpad':
-      return <Launchpad onLaunch={onLaunchApp} />;
+      return <Launchpad onLaunch={onLaunchApp} onLaunchForsionApp={onLaunchForsionApp} />;
     case 'settings':
       return <SettingsContent currentTheme={currentTheme} onThemeChange={onThemeChange} />;
     case 'knowledge':

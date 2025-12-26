@@ -386,6 +386,14 @@ Authorization: Bearer YOUR_JWT_TOKEN
 | `/api/credits/transactions` | GET | 积分交易历史 | ✅ |
 | `/api/usage/logs` | GET | 获取使用日志 | ✅ |
 | `/api/usage/stats` | GET | 获取统计数据 | ✅ |
+| `/api/desk/apps` | GET | 获取所有可用应用 | ✅ |
+| `/api/desk/user-apps` | GET | 获取用户已安装应用 | ✅ |
+| `/api/desk/apps/:appId/install` | POST | 安装应用 | ✅ |
+| `/api/desk/apps/:appId/uninstall` | DELETE | 卸载应用 | ✅ |
+| `/api/desk/apps` | POST | 创建应用 | ✅ |
+| `/api/desk/apps/:appId` | PUT | 更新应用 | ✅ |
+| `/api/desk/apps/:appId` | DELETE | 删除应用 | ✅ |
+| `/api/desk/admin/apps` | GET | 获取所有应用（管理员） | ✅ |
 
 ---
 
@@ -422,14 +430,15 @@ GET /api/info
   "name": "Forsion Backend Service",
   "version": "2.0.0",
   "description": "Unified Backend Service for Forsion Projects",
-  "supportedProjects": ["ai-studio", "desktop"],
-  "features": ["auth", "ai-models", "chat", "credits", "usage-stats"],
+  "supportedProjects": ["ai-studio", "desktop", "forsion-desk"],
+  "features": ["auth", "ai-models", "chat", "credits", "usage-stats", "forsion-desk"],
   "endpoints": {
     "auth": "/api/auth",
     "models": "/api/models",
     "chat": "/api/chat",
     "credits": "/api/credits",
     "usage": "/api/usage",
+    "desk": "/api/desk",
     "health": "/api/health"
   }
 }
@@ -945,6 +954,449 @@ Authorization: Bearer YOUR_JWT_TOKEN
       "tokens": 52500
     }
   ]
+}
+```
+
+---
+
+### 8. Forsion Desk 应用市场接口
+
+Forsion Desk 应用市场允许管理员管理全局应用，用户创建私有应用，以及用户安装/卸载应用。
+
+#### 获取所有可用应用
+
+```http
+GET /api/desk/apps
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+**响应：**
+
+返回当前用户可见的所有应用列表（全局应用 + 用户创建的私有应用）。
+
+```json
+[
+  {
+    "id": "app-uuid-1",
+    "name": "My App",
+    "description": "App description",
+    "icon": "data:image/png;base64,...",
+    "url": "https://example.com",
+    "isGlobal": true,
+    "createdBy": "user-uuid",
+    "isActive": true,
+    "sortOrder": 0,
+    "category": "Productivity",
+    "createdAt": "2025-12-25T10:00:00.000Z",
+    "updatedAt": "2025-12-25T10:00:00.000Z"
+  }
+]
+```
+
+**字段说明：**
+- `icon`: 应用图标，支持 Base64 编码（`data:image/png;base64,...`）或 URL 链接
+- `isGlobal`: 是否为全局应用（管理员创建）
+- `createdBy`: 创建者用户 ID
+- `isActive`: 应用是否启用
+- `sortOrder`: 排序顺序（数字越小越靠前）
+- `category`: 应用分类
+
+**使用示例（curl）：**
+
+```bash
+curl -X GET http://localhost:3001/api/desk/apps \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+#### 获取用户已安装的应用
+
+```http
+GET /api/desk/user-apps
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+**响应：**
+
+返回用户已安装的应用详情列表。
+
+```json
+[
+  {
+    "id": "app-uuid-1",
+    "name": "My App",
+    "description": "App description",
+    "icon": "data:image/png;base64,...",
+    "url": "https://example.com",
+    "isGlobal": true,
+    "isActive": true,
+    "sortOrder": 0,
+    "category": "Productivity"
+  }
+]
+```
+
+**使用示例（curl）：**
+
+```bash
+curl -X GET http://localhost:3001/api/desk/user-apps \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+#### 安装应用
+
+```http
+POST /api/desk/apps/:appId/install
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+**路径参数：**
+- `appId`: 应用 ID
+
+**响应：**
+
+```json
+{
+  "success": true
+}
+```
+
+**使用示例（curl）：**
+
+```bash
+curl -X POST http://localhost:3001/api/desk/apps/app-uuid-1/install \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+#### 卸载应用
+
+```http
+DELETE /api/desk/apps/:appId/uninstall
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+**路径参数：**
+- `appId`: 应用 ID
+
+**响应：**
+
+```json
+{
+  "success": true
+}
+```
+
+**使用示例（curl）：**
+
+```bash
+curl -X DELETE http://localhost:3001/api/desk/apps/app-uuid-1/uninstall \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+#### 获取应用详情
+
+```http
+GET /api/desk/apps/:appId
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+**路径参数：**
+- `appId`: 应用 ID
+
+**响应：**
+
+返回应用的完整信息（格式与获取所有应用中的单个应用对象相同）。
+
+#### 创建应用
+
+```http
+POST /api/desk/apps
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
+
+{
+  "name": "My App",
+  "description": "App description",
+  "icon": "data:image/png;base64,...",
+  "url": "https://example.com",
+  "isGlobal": false,
+  "isActive": true,
+  "sortOrder": 0,
+  "category": "Productivity"
+}
+```
+
+**请求字段说明：**
+- `name` (必需): 应用名称
+- `url` (必需): 应用链接
+- `description` (可选): 应用介绍
+- `icon` (可选): 应用图标（Base64 或 URL）
+- `isGlobal` (可选): 是否为全局应用，默认为 `false`（仅管理员可创建全局应用）
+- `isActive` (可选): 是否启用，默认为 `true`
+- `sortOrder` (可选): 排序顺序，默认为 `0`
+- `category` (可选): 应用分类
+
+**权限说明：**
+- 管理员可以创建全局应用（`isGlobal: true`）
+- 所有认证用户可以创建私有应用（`isGlobal: false`）
+
+**响应：**
+
+返回创建的应用对象。
+
+**使用示例（curl）：**
+
+```bash
+curl -X POST http://localhost:3001/api/desk/apps \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My App",
+    "description": "A great app",
+    "url": "https://example.com",
+    "icon": "https://example.com/icon.png",
+    "category": "Productivity"
+  }'
+```
+
+#### 更新应用
+
+```http
+PUT /api/desk/apps/:appId
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
+
+{
+  "name": "Updated App Name",
+  "description": "Updated description",
+  "icon": "data:image/png;base64,...",
+  "url": "https://new-url.com",
+  "isActive": true,
+  "sortOrder": 1,
+  "category": "Entertainment"
+}
+```
+
+**路径参数：**
+- `appId`: 应用 ID
+
+**请求字段说明：**
+所有字段都是可选的，只需传递需要更新的字段。
+
+**权限说明：**
+- 管理员可以编辑所有应用（包括全局应用）
+- 用户只能编辑自己创建的私有应用
+- 只有管理员可以修改 `isGlobal` 字段
+
+**响应：**
+
+返回更新后的应用对象。
+
+**使用示例（curl）：**
+
+```bash
+curl -X PUT http://localhost:3001/api/desk/apps/app-uuid-1 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Updated Name",
+    "description": "Updated description"
+  }'
+```
+
+#### 删除应用
+
+```http
+DELETE /api/desk/apps/:appId
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+**路径参数：**
+- `appId`: 应用 ID
+
+**权限说明：**
+- 管理员可以删除所有应用（包括全局应用）
+- 用户只能删除自己创建的私有应用
+
+**响应：**
+
+```json
+{
+  "success": true
+}
+```
+
+**使用示例（curl）：**
+
+```bash
+curl -X DELETE http://localhost:3001/api/desk/apps/app-uuid-1 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**注意：** 删除应用时，会自动从所有用户的已安装应用列表中移除该应用。
+
+#### 管理员获取所有应用（包含禁用应用）
+
+```http
+GET /api/desk/admin/apps
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+**权限：** 仅管理员
+
+**响应：**
+
+返回所有应用列表（包括禁用和未禁用的应用）。
+
+**使用示例（curl）：**
+
+```bash
+curl -X GET http://localhost:3001/api/desk/admin/apps \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+---
+
+#### 图标处理最佳实践
+
+应用图标支持两种格式：
+
+1. **Base64 编码图片**
+   ```json
+   {
+     "icon": "data:image/png;base64,iVBORw0KGgoAAAANS..."
+   }
+   ```
+
+2. **URL 链接**
+   ```json
+   {
+     "icon": "https://example.com/icon.png"
+   }
+   ```
+
+**推荐做法：**
+- 图标大小限制：最大 16MB
+- 建议图标尺寸：64x64 到 512x512 像素
+- 支持的图片格式：PNG、JPEG、SVG、WebP
+- 对于小图标（< 100KB），推荐使用 Base64 编码
+- 对于大图标，推荐使用 URL 链接
+
+---
+
+#### 客户端集成示例（TypeScript）
+
+```typescript
+// src/services/deskService.ts
+import { apiClient } from './api';
+
+export interface ForsionApp {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  url: string;
+  isGlobal: boolean;
+  createdBy?: string;
+  isActive: boolean;
+  sortOrder: number;
+  category?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// 获取所有可用应用
+export async function getAllApps(): Promise<ForsionApp[]> {
+  const response = await apiClient.get('/api/desk/apps');
+  return response.data;
+}
+
+// 获取用户已安装的应用
+export async function getUserInstalledApps(): Promise<ForsionApp[]> {
+  const response = await apiClient.get('/api/desk/user-apps');
+  return response.data;
+}
+
+// 安装应用
+export async function installApp(appId: string): Promise<void> {
+  await apiClient.post(`/api/desk/apps/${appId}/install`);
+}
+
+// 卸载应用
+export async function uninstallApp(appId: string): Promise<void> {
+  await apiClient.delete(`/api/desk/apps/${appId}/uninstall`);
+}
+
+// 获取应用详情
+export async function getAppById(appId: string): Promise<ForsionApp> {
+  const response = await apiClient.get(`/api/desk/apps/${appId}`);
+  return response.data;
+}
+
+// 创建应用
+export async function createApp(appData: {
+  name: string;
+  url: string;
+  description?: string;
+  icon?: string;
+  isGlobal?: boolean;
+  isActive?: boolean;
+  sortOrder?: number;
+  category?: string;
+}): Promise<ForsionApp> {
+  const response = await apiClient.post('/api/desk/apps', appData);
+  return response.data;
+}
+
+// 更新应用
+export async function updateApp(
+  appId: string,
+  appData: Partial<{
+    name: string;
+    description: string;
+    icon: string;
+    url: string;
+    isGlobal: boolean;
+    isActive: boolean;
+    sortOrder: number;
+    category: string;
+  }>
+): Promise<ForsionApp> {
+  const response = await apiClient.put(`/api/desk/apps/${appId}`, appData);
+  return response.data;
+}
+
+// 删除应用
+export async function deleteApp(appId: string): Promise<void> {
+  await apiClient.delete(`/api/desk/apps/${appId}`);
+}
+
+// 将图片文件转换为 Base64
+export function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// 上传图标（从文件）
+export async function uploadAppIcon(file: File): Promise<string> {
+  // 检查文件大小（最大 16MB）
+  if (file.size > 16 * 1024 * 1024) {
+    throw new Error('图标文件大小不能超过 16MB');
+  }
+  
+  // 检查文件类型
+  if (!file.type.startsWith('image/')) {
+    throw new Error('只能上传图片文件');
+  }
+  
+  // 转换为 Base64
+  return await fileToBase64(file);
 }
 ```
 

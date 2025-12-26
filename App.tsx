@@ -6,7 +6,7 @@ import { LoginModal } from './components/LoginModal';
 import { WidgetBoard } from './components/WidgetBoard';
 import UserSettingsModal from './components/UserSettingsModal';
 import Avatar from './components/Avatar';
-import { WindowState, AppId, Theme } from './types';
+import { WindowState, AppId, Theme, ForsionApp } from './types';
 import { APPS, THEMES } from './constants';
 import { motion } from 'framer-motion';
 import { LogOut } from 'lucide-react';
@@ -150,6 +150,11 @@ const App: React.FC = () => {
     setNextZIndex(z => z + 1);
   }, [windows, nextZIndex]);
 
+  const handleLaunchForsionApp = useCallback((app: ForsionApp) => {
+    // Open Forsion App URL in new tab
+    window.open(app.url, '_blank', 'noopener,noreferrer');
+  }, []);
+
   const closeWindow = (id: string) => {
     setWindows(prev => prev.filter(w => w.id !== id));
   };
@@ -246,6 +251,7 @@ const App: React.FC = () => {
           installedApps={installedApps}
           onInstall={(appId) => setInstalledApps(prev => [...prev, appId])}
           onLaunchApp={launchApp}
+          onLaunchForsionApp={handleLaunchForsionApp}
         />
       </main>
 

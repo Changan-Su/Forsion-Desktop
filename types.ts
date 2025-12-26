@@ -1,5 +1,5 @@
 
-export type AppId = 'knowledge' | 'calendar' | 'workspace' | 'recipe' | 'studio' | 'settings' | 'notes' | 'app-market' | 'launchpad';
+export type AppId = 'knowledge' | 'calendar' | 'workspace' | 'recipe' | 'studio' | 'settings' | 'notes' | 'app-market' | 'launchpad' | 'forsion-desk-market' | string;
 
 export interface Theme {
   id: string;
@@ -32,6 +32,20 @@ export interface DesktopApp {
   name: string;
   icon: string;
   color: string;
+}
+
+export interface ForsionApp {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;  // Base64 encoded image or URL
+  url: string;
+  isGlobal: boolean;
+  isActive: boolean;
+  sortOrder: number;
+  category?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 import type { User, Session, AIModel } from './types/shared';
