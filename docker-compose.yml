@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+        VITE_API_URL: ${VITE_API_URL:-}
     container_name: forsion-desk
     restart: unless-stopped
     ports:
