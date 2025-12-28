@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   # 前端服务
@@ -11,7 +10,7 @@ services:
     container_name: forsion-desk
     restart: unless-stopped
     ports:
-      - "$2005:80"
+      - "$005:80"
     networks:
       - forsion-network
 
