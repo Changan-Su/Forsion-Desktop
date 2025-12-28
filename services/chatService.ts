@@ -3,7 +3,10 @@ import type { Session, Message, ChatRequest, ChatResponse, OpenAIMessage, OpenAI
 import SessionStorageService from './sessionStorageService';
 import AuthService from './authService';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// 如果 VITE_API_URL 为空，使用相对路径（通过 nginx 代理）
+const API_BASE_URL = import.meta.env.VITE_API_URL !== undefined && import.meta.env.VITE_API_URL !== '' 
+  ? import.meta.env.VITE_API_URL 
+  : (import.meta.env.DEV ? 'http://localhost:3001' : '');
 const PROJECT_SOURCE = import.meta.env.VITE_PROJECT_SOURCE || 'desktop';
 
 export type { Session, Message, ChatRequest, ChatResponse };

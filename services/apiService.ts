@@ -1,4 +1,8 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// 如果 VITE_API_URL 为空，使用相对路径（通过 nginx 代理）
+// 否则使用配置的 URL 或默认值
+const API_BASE_URL = import.meta.env.VITE_API_URL !== undefined && import.meta.env.VITE_API_URL !== '' 
+  ? import.meta.env.VITE_API_URL 
+  : (import.meta.env.DEV ? 'http://localhost:3001' : '');
 const PROJECT_SOURCE = import.meta.env.VITE_PROJECT_SOURCE || 'desktop';
 
 export interface ApiResponse<T = any> {

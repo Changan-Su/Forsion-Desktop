@@ -1,0 +1,53 @@
+# 依赖
+node_modules
+server/node_modules
+npm-debug.log
+yarn-error.log
+
+# 构建产物
+dist
+build
+server/dist
+*.log
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+server/.env
+server/.env.local
+
+# 版本控制
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# 操作系统
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 文档和脚本（可选，根据需要调整）
+# Documents
+# *.md
+# start-dev.sh
+# start-dev.ps1
+
+# 测试文件
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# 临时文件
+*.tmp
+*.temp
+.cache
+

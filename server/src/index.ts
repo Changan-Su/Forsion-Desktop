@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { testConnection, initializeDatabase } from './db/connection.js';
+import { createDefaultAdmin } from './db/seed.js';
 import authRoutes from './routes/auth.js';
 import sessionRoutes from './routes/sessions.js';
 import messageRoutes from './routes/messages.js';
@@ -70,7 +71,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // 启动服务器
 async function startServer() {
   try {
-    // 测试数据库连接（不阻塞服务器启动）
+    // 测试数据库连接并初始化
     let dbStatus = 'Unknown';
     try {
       const connected = await testConnection();
@@ -83,6 +84,21 @@ async function startServer() {
       } else {
         dbStatus = 'Connected';
         console.log('ℹ️  Connected to forsion_desktop database');
+        
+        // 初始化数据库表
+        try {
+          await initializeDatabase();
+          console.log('✅ Database tables initialized');
+        } catch (initError: any) {
+          console.log('ℹ️  Database tables may already exist:', initError.message);
+        }
+        
+        // 创建默认管理员
+        try {
+          await createDefaultAdmin();
+        } catch (seedError: any) {
+          console.log('ℹ️  Admin user may already exist:', seedError.message);
+        }
       }
     } catch (dbTestError: any) {
       console.warn('⚠️  Database connection test failed:', dbTestError.message || dbTestError);
