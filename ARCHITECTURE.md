@@ -59,29 +59,26 @@ graph TB
 sequenceDiagram
     participant User
     participant Frontend
-    participant Backend
-    participant MySQL
+    participant BackendService as Forsion Backend Service
+    participant IndexedDB
     participant AI as AI Models
     
     User->>Frontend: 打开聊天 (Ctrl+K)
-    Frontend->>Backend: GET /api/sessions (with JWT)
-    Backend->>MySQL: 查询会话列表
-    MySQL-->>Backend: 返回会话
-    Backend-->>Frontend: 会话列表
+    Frontend->>IndexedDB: 读取会话列表
+    IndexedDB-->>Frontend: 返回会话列表
     
     User->>Frontend: 发送消息
-    Frontend->>Backend: POST /api/chat (stream=true)
-    Backend->>MySQL: 保存用户消息
-    Backend->>AI: 发送请求
+    Frontend->>IndexedDB: 保存用户消息（本地）
+    Frontend->>BackendService: POST /api/chat/completions (stream=true, with JWT)
+    BackendService->>AI: 发送请求
     
     loop 流式响应
-        AI-->>Backend: 返回文本片段
-        Backend-->>Frontend: SSE: 文本片段
+        AI-->>BackendService: 返回文本片段
+        BackendService-->>Frontend: SSE: 文本片段
         Frontend->>User: 实时显示
     end
     
-    Backend->>MySQL: 保存AI响应
-    Backend-->>Frontend: SSE: 完成信号
+    Frontend->>IndexedDB: 保存AI响应（本地）
 ```
 
 ## 认证流程
@@ -135,39 +132,13 @@ Forsion-Desktop/
 │   ├── constants.tsx           # 常量配置
 │   └── vite.config.ts          # Vite 配置
 │
-├── Backend (后端)
-│   └── server/
-│       ├── src/
-│       │   ├── index.ts        # 服务器入口
-│       │   │
-│       │   ├── routes/         # API 路由层
-│       │   │   ├── auth.ts     # 认证路由
-│       │   │   ├── chat.ts     # 聊天路由
-│       │   │   ├── sessions.ts # 会话路由
-│       │   │   ├── messages.ts # 消息路由
-│       │   │   └── settings.ts # 设置路由
-│       │   │
-│       │   ├── services/       # 业务逻辑层
-│       │   │   ├── authService.ts     # 认证逻辑
-│       │   │   ├── aiService.ts       # AI 调用逻辑
-│       │   │   ├── sessionService.ts  # 会话管理
-│       │   │   ├── messageService.ts  # 消息管理
-│       │   │   ├── modelService.ts    # 模型管理
-│       │   │   └── settingsService.ts # 设置管理
-│       │   │
-│       │   ├── middleware/     # 中间件
-│       │   │   └── auth.ts     # JWT 认证中间件
-│       │   │
-│       │   ├── db/             # 数据库层
-│       │   │   ├── connection.ts  # 连接池配置
-│       │   │   ├── schema.sql     # 表结构定义
-│       │   │   └── seed.ts        # 数据初始化
-│       │   │
-│       │   └── types/          # 类型定义
-│       │       └── index.ts    # 共享类型
-│       │
-│       ├── package.json
-│       └── tsconfig.json
+├── External Backend Service (外部后端服务)
+│   └── Forsion Backend Service (独立部署，不在本仓库中)
+│       ├── 用户认证系统 (JWT)
+│       ├── AI 模型管理
+│       ├── AI 对话接口 (OpenAI 兼容)
+│       ├── 积分系统
+│       └── 使用统计
 │
 ├── Documentation (文档)
 │   ├── README.md                    # 项目说明

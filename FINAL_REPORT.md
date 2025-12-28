@@ -11,38 +11,9 @@
 
 ### 创建的文件
 
-#### 后端文件 (22个)
-```
-server/
-├── package.json
-├── tsconfig.json
-├── .env.example
-└── src/
-    ├── index.ts                    # 服务器入口
-    ├── db/
-    │   ├── connection.ts           # 数据库连接
-    │   ├── schema.sql              # 表结构
-    │   └── seed.ts                 # 数据初始化
-    ├── middleware/
-    │   └── auth.ts                 # JWT 认证中间件
-    ├── routes/
-    │   ├── auth.ts                 # 认证路由
-    │   ├── chat.ts                 # 聊天路由
-    │   ├── messages.ts             # 消息路由
-    │   ├── sessions.ts             # 会话路由
-    │   └── settings.ts             # 设置路由
-    ├── services/
-    │   ├── aiService.ts            # AI 调用服务
-    │   ├── authService.ts          # 认证服务
-    │   ├── messageService.ts       # 消息服务
-    │   ├── modelService.ts         # 模型服务
-    │   ├── sessionService.ts       # 会话服务
-    │   └── settingsService.ts      # 设置服务
-    └── types/
-        └── index.ts                # 类型定义
-```
-
 #### 前端文件 (更新4个 + 新增5个)
+
+**注意**：本项目现在使用外部的 **Forsion Backend Service**，不再包含本地后端代码。
 
 **新增**:
 ```

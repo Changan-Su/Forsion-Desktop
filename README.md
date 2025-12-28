@@ -2,18 +2,18 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Forsion Desktop - Full Stack AI Application
+# Forsion Desktop - AI Desktop Application
 
-一个现代化、全栈的 AI 桌面应用，集成 MySQL 数据库、用户认证、多模型 AI 对话功能。
+一个现代化的 AI 桌面应用，使用共享的 Forsion Backend Service，提供用户认证、多模型 AI 对话功能。
 
 ## ✨ 特性
 
 - 🎨 精美的 macOS 风格桌面界面
 - 💬 AI 聊天助手，支持流式响应
-- 🔄 完整的会话管理系统
+- 🔄 完整的会话管理系统（本地 IndexedDB 存储）
 - 🤖 支持多种 AI 模型（Gemini, OpenAI, DeepSeek, Claude）
-- 👤 用户认证系统（JWT）
-- 🗄️ MySQL 数据库持久化
+- 👤 用户认证系统（通过 Forsion Backend Service）
+- 💾 本地数据持久化（IndexedDB）
 - 🌊 Server-Sent Events 流式响应
 - 📱 响应式设计
 
@@ -22,8 +22,8 @@
 ### 前置要求
 
 - Node.js 18+
-- MySQL 8.0+
 - npm 或 yarn
+- Forsion Backend Service 运行中（或配置了 `VITE_API_URL` 指向后端服务）
 
 ### 1. 克隆项目
 
@@ -32,65 +32,24 @@ git clone <repository-url>
 cd Forsion-Desktop-main
 ```
 
-### 2. 数据库设置
+### 2. 配置环境变量
 
-**方法一：使用命令行**
-```bash
-# 登录 MySQL
-mysql -u root -p
-
-# 执行以下 SQL 命令
-CREATE DATABASE forsion_desktop CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
-
-**方法二：使用 MySQL Workbench**
-1. 打开 MySQL Workbench
-2. 连接到本地 MySQL 服务器
-3. 创建新数据库：`forsion_desktop`
-4. 字符集选择：`utf8mb4`
-
-### 3. 配置环境变量
-
-**后端配置** (`server/.env`):
+创建 `.env.local` 文件：
 
 ```env
-MYSQL_HOST=localhost
-MYSQL_PORT=3306
-MYSQL_USER=root
-MYSQL_PASSWORD=your_password
-MYSQL_DATABASE=forsion_desktop
-
-JWT_SECRET=your-secret-key
-JWT_EXPIRES_IN=7d
-
-PORT=3001
-NODE_ENV=development
-
-CORS_ORIGIN=http://localhost:3000
-
-GEMINI_API_KEY=your_gemini_api_key
-```
-
-**前端配置** (`.env.local`):
-
-```env
-GEMINI_API_KEY=your_gemini_api_key
 VITE_API_URL=http://localhost:3001
+VITE_PROJECT_SOURCE=desktop
 ```
 
-### 4. 安装依赖
+**注意**：`VITE_API_URL` 应该指向运行中的 Forsion Backend Service。如果使用共享后端服务，请配置正确的后端服务地址。
+
+### 3. 安装依赖
 
 ```bash
-# 前端依赖
 npm install
-
-# 后端依赖
-cd server
-npm install
-cd ..
 ```
 
-### 5. 启动应用
+### 4. 启动应用
 
 **Windows:**
 ```powershell
@@ -103,18 +62,19 @@ chmod +x start-dev.sh
 ./start-dev.sh
 ```
 
-### 6. 访问应用
+### 5. 访问应用
 
 - 前端：http://localhost:3000
-- 后端 API：http://localhost:3001
 
-### 7. 首次使用
+**注意**：确保 Forsion Backend Service 在 `VITE_API_URL` 指定的地址运行。
+
+### 6. 首次使用
 
 1. 打开 http://localhost:3000
 2. 点击右上角的"账户设置"按钮
 3. 选择"Sign up"注册新账户并登录
 
-### 8. 使用 AI 聊天
+### 7. 使用 AI 聊天
 
 1. 按 `Ctrl+K` (Windows) 或 `⌘K` (Mac) 打开 AI 聊天
 2. 选择想要使用的 AI 模型
@@ -123,11 +83,11 @@ chmod +x start-dev.sh
 
 ## ❓ 常见问题
 
-### 数据库连接失败
+### 后端服务连接失败
 
-- 检查 MySQL 服务是否启动
-- 确认 `server/.env` 中的数据库配置正确
-- 确认数据库 `forsion_desktop` 已创建
+- 确保 Forsion Backend Service 正在运行
+- 检查 `.env.local` 中的 `VITE_API_URL` 配置是否正确
+- 访问后端服务的 `/api/health` 端点检查服务状态
 
 ### API Key 无效
 
@@ -137,24 +97,17 @@ chmod +x start-dev.sh
 
 ### 端口被占用
 
-如果 3000 或 3001 端口被占用，可以在配置文件中修改端口：
+如果 3000 端口被占用，可以在 `vite.config.ts` 中修改端口，或使用环境变量：
 
-**修改后端端口**（server/.env）：
-```env
-PORT=3005  # 改为其他端口
+```bash
+# 使用自定义端口启动
+npm run dev -- --port 3005
 ```
-
-别忘了更新 `.env.local` 中的 `VITE_API_URL`
 
 ### 依赖安装失败
 
 ```bash
 # 清除缓存重试
-npm cache clean --force
-npm install
-
-# 后端
-cd server
 npm cache clean --force
 npm install
 ```
@@ -166,13 +119,6 @@ npm install
 - [🚀 部署指南](./DEPLOYMENT_CHECKLIST.md) - 生产环境部署检查清单
 
 ## 🏗️ 技术栈
-
-### 后端
-- Node.js + Express + TypeScript
-- MySQL 8.0 + mysql2
-- JWT 认证 (jsonwebtoken)
-- bcrypt 密码加密
-- Google Generative AI, OpenAI SDK
 
 ### 前端
 - React 19 + TypeScript
@@ -195,23 +141,20 @@ npm install
 - ✅ 历史记录持久化
 
 ### 数据持久化
-- ✅ MySQL 数据库
-- ✅ 用户数据
-- ✅ 聊天历史
-- ✅ 用户设置
+- ✅ IndexedDB（本地存储会话和消息）
+- ✅ 用户数据（通过 Forsion Backend Service）
+- ✅ 聊天历史（本地 IndexedDB）
+- ✅ 用户设置（通过 Forsion Backend Service）
 
 ## 📁 项目结构
 
 ```
 Forsion-Desktop/
-├── server/                 # 后端服务
-│   ├── src/
-│   │   ├── routes/        # API 路由
-│   │   ├── services/      # 业务逻辑
-│   │   ├── middleware/    # 认证中间件
-│   │   └── db/            # 数据库配置
-│   └── package.json
 ├── services/              # 前端服务层
+│   ├── apiService.ts      # API 客户端
+│   ├── authService.ts     # 认证服务
+│   ├── chatService.ts     # 聊天服务
+│   └── sessionStorageService.ts  # IndexedDB 存储
 ├── components/            # React 组件
 ├── start-dev.sh          # 启动脚本 (Linux/Mac)
 ├── start-dev.ps1         # 启动脚本 (Windows)
@@ -220,11 +163,10 @@ Forsion-Desktop/
 
 ## 🔐 安全性
 
-- 密码使用 bcrypt 加密
-- JWT Token 认证
+- JWT Token 认证（由 Forsion Backend Service 提供）
 - CORS 保护
-- SQL 注入防护
-- API Key 环境变量管理
+- API Key 由后端服务管理
+- 本地数据存储在 IndexedDB 中
 
 ## 🤝 贡献
 
