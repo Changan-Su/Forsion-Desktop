@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Inbox, Sun } from 'lucide-react';
+import { Sun, HelpCircle } from 'lucide-react';
 
 export const WidgetBoard: React.FC = () => {
   return (
@@ -32,50 +32,29 @@ export const WidgetBoard: React.FC = () => {
         </div>
       </motion.div>
 
-      {/* Focus Widget */}
+      {/* Dock Usage Guide Widget */}
       <motion.div 
         initial={{ x: -50, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ delay: 0.1 }}
-        className="pointer-events-auto glass-dark p-5 rounded-3xl bg-white/20"
-      >
-        <div className="flex justify-between items-center text-accent">
-          <Zap size={18} />
-          <span className="text-xs font-bold uppercase tracking-widest">Stillness</span>
-        </div>
-        <div className="flex items-center justify-center py-4">
-          <div className="relative w-24 h-24 flex items-center justify-center">
-            <svg className="absolute inset-0 w-full h-full -rotate-90">
-              <circle cx="48" cy="48" r="44" fill="none" stroke="currentColor" strokeWidth="4" className="opacity-10" />
-              <circle cx="48" cy="48" r="44" fill="none" stroke="currentColor" strokeWidth="4" strokeDasharray="276" strokeDashoffset="70" className="text-accent" />
-            </svg>
-            <span className="text-xl font-bold text-surface-text">25:00</span>
-          </div>
-        </div>
-        <button className="w-full py-2 bg-accent text-white rounded-xl text-xs font-bold hover:brightness-110 transition-all shadow-sm">FOCUS</button>
-      </motion.div>
-
-      {/* Inbox Widget */}
-      <motion.div 
-        initial={{ x: -50, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ delay: 0.2 }}
         className="pointer-events-auto glass-dark p-5 rounded-3xl"
       >
         <div className="flex justify-between items-center opacity-50">
-          <Inbox size={18} />
-          <span className="text-xs font-bold uppercase tracking-widest">Messages</span>
+          <HelpCircle size={18} />
+          <span className="text-xs font-bold uppercase tracking-widest">Quick Tips</span>
         </div>
         <div className="space-y-3 pt-3">
-          {[
-            { from: 'Studio', msg: 'New harmony draft' },
-            { from: 'Ocean', msg: 'The tide is rising' },
-          ].map((item, i) => (
-            <div key={i} className="bg-white/20 p-2 rounded-xl border border-white/20 cursor-pointer hover:bg-white/30 transition-colors">
-              <div className="text-[10px] font-bold opacity-40 uppercase mb-0.5">{item.from}</div>
-              <div className="text-xs text-surface-text">{item.msg}</div>
+          <div className="space-y-2">
+            <div className="text-xs text-surface-text opacity-90">
+              <span className="font-semibold">点击图标：</span>打开应用
             </div>
-          ))}
+            <div className="text-xs text-surface-text opacity-90">
+              <span className="font-semibold">长按拖动：</span>重新排列 Dock
+            </div>
+            <div className="text-xs text-surface-text opacity-90">
+              <span className="font-semibold">启动台：</span>点击图标右上角 <span className="inline-block">⋮</span> 查看选项
+            </div>
+          </div>
         </div>
       </motion.div>
     </div>

@@ -66,6 +66,17 @@
       background-size: cover;
       background-position: center;
     }
+    /* GPU 加速样式 - 仅在 .gpu-acceleration 类激活时生效 */
+    body.gpu-acceleration .glass,
+    body.gpu-acceleration .glass-dark {
+      will-change: transform, opacity;
+      transform: translateZ(0);
+      backface-visibility: hidden;
+    }
+    body.gpu-acceleration [data-gpu-accelerated] {
+      will-change: transform, opacity;
+      transform: translateZ(0);
+    }
   </style>
 </head>
 <body>

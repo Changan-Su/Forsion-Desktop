@@ -1,11 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Minus, Maximize2, Image as ImageIcon, Check, Server, CheckCircle2, XCircle, Loader } from 'lucide-react';
 import { WindowState, AppId, Theme, ForsionApp } from '../types';
 import { APPS, THEMES } from '../constants';
 import apiService from '../services/apiService';
-import { AppMarket } from './AppMarket';
+import SettingsStorageService from '../services/settingsStorageService';
 import { Launchpad } from './Launchpad';
 import { ForsionDeskMarket } from './ForsionDeskMarket';
 
@@ -34,10 +34,36 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
   onLaunchApp,
   onLaunchForsionApp
 }) => {
+  const [gpuAcceleration, setGpuAcceleration] = useState<boolean>(true);
+
+  useEffect(() => {
+    const gpuEnabled = SettingsStorageService.getGPUAcceleration();
+    setGpuAcceleration(gpuEnabled);
+
+    // Listen for storage changes and custom events
+    const handleStorageChange = () => {
+      setGpuAcceleration(SettingsStorageService.getGPUAcceleration());
+    };
+    const handleGPUChange = (e: CustomEvent) => {
+      setGpuAcceleration(e.detail.enabled);
+    };
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('gpu-acceleration-changed', handleGPUChange as EventListener);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('gpu-acceleration-changed', handleGPUChange as EventListener);
+    };
+  }, []);
+
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
       <AnimatePresence>
         {windows.filter(w => !w.isMinimized).map((win) => {
+          const gpuStyle = gpuAcceleration ? {
+            willChange: 'transform, opacity' as const,
+            transform: 'translateZ(0)',
+          } : {};
+          
           return (
             <motion.div
               key={win.id}
@@ -47,12 +73,14 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               onMouseDown={() => onFocus(win.id)}
               className="absolute pointer-events-auto rounded-2xl glass-dark shadow-[0_20px_50px_rgba(0,0,0,0.15)] flex flex-col overflow-hidden border border-white/40"
+              data-gpu-accelerated={gpuAcceleration ? 'true' : undefined}
               style={{
                 zIndex: win.zIndex,
                 width: win.width,
                 height: win.height,
                 left: win.x,
                 top: win.y,
+                ...gpuStyle,
               }}
             >
               {/* Title Bar - Simplified */}
@@ -62,7 +90,7 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
                   If I keep WindowManager header, I'll have double headers.
                   Let's conditionally hide WindowManager header for AppMarket.
               */}
-              {win.appId !== 'app-market' && win.appId !== 'forsion-desk-market' && (
+              {win.appId !== 'forsion-desk-market' && (
                 <div className="h-12 flex items-center justify-between px-6 pt-4 select-none">
                   <span className="text-surface-text text-xl font-bold tracking-tight opacity-90">{win.title}</span>
                   <button 
@@ -194,8 +222,6 @@ const renderAppContent = (
   };
 
   switch (appId) {
-    case 'app-market':
-      return <AppMarket installedApps={installedApps} onInstall={onInstall} />;
     case 'forsion-desk-market':
       return <ForsionDeskMarket />;
     case 'launchpad':
@@ -276,6 +302,28 @@ const SettingsContent: React.FC<{ currentTheme: Theme; onThemeChange: (theme: Th
     status: 'idle',
     message: ''
   });
+  const [gpuAcceleration, setGpuAcceleration] = useState<boolean>(false);
+
+  // Load GPU acceleration setting on mount
+  useEffect(() => {
+    const gpuEnabled = SettingsStorageService.getGPUAcceleration();
+    setGpuAcceleration(gpuEnabled);
+  }, []);
+
+  const handleGPUAccelerationToggle = async (enabled: boolean) => {
+    setGpuAcceleration(enabled);
+    SettingsStorageService.setGPUAccelerationGlobal(enabled);
+    
+    // Apply class to body immediately
+    if (enabled) {
+      document.body.classList.add('gpu-acceleration');
+    } else {
+      document.body.classList.remove('gpu-acceleration');
+    }
+
+    // Dispatch custom event to notify other components
+    window.dispatchEvent(new CustomEvent('gpu-acceleration-changed', { detail: { enabled } }));
+  };
 
   const handleTestConnection = async () => {
     setConnectionStatus({
@@ -413,6 +461,30 @@ const SettingsContent: React.FC<{ currentTheme: Theme; onThemeChange: (theme: Th
               </button>
             </div>
           )}
+        </div>
+      </section>
+
+      <section>
+        <h3 className="text-sm font-bold uppercase tracking-wider mb-4 opacity-60">Performance</h3>
+        <div className="glass p-4 rounded-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="text-sm font-bold text-surface-text mb-1">GPU Acceleration</div>
+              <div className="text-xs text-surface-text opacity-60">Use hardware acceleration for smoother animations</div>
+            </div>
+            <button
+              onClick={() => handleGPUAccelerationToggle(!gpuAcceleration)}
+              className={`relative w-14 h-8 rounded-full transition-colors duration-200 ${
+                gpuAcceleration ? 'bg-accent' : 'bg-gray-400'
+              }`}
+            >
+              <span
+                className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
+                  gpuAcceleration ? 'translate-x-6' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
         </div>
       </section>
     </div>

@@ -108,6 +108,7 @@ export interface UserSettings {
   user_id: number;
   preferred_model?: string;
   theme_preferences?: any;
+  gpu_acceleration?: boolean;
   created_at: string;
   updated_at: string;
 }

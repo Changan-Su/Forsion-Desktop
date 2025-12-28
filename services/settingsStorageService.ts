@@ -6,6 +6,7 @@
 import type { UserSettings } from '../types/shared';
 
 const SETTINGS_KEY = 'forsion_desktop_settings';
+const GLOBAL_GPU_KEY = 'forsion_desktop_gpu_acceleration'; // For unauthenticated users
 
 export class SettingsStorageService {
   private static getUserId(): number | null {
@@ -37,6 +38,7 @@ export class SettingsStorageService {
           user_id: userId,
           preferred_model: settings.preferred_model || undefined,
           theme_preferences: settings.theme_preferences || {},
+          gpu_acceleration: settings.gpu_acceleration ?? true,
           created_at: settings.created_at || new Date().toISOString(),
           updated_at: settings.updated_at || new Date().toISOString(),
         };
@@ -52,6 +54,7 @@ export class SettingsStorageService {
       user_id: userId,
       preferred_model: undefined,
       theme_preferences: {},
+      gpu_acceleration: true,
       created_at: now,
       updated_at: now,
     };
@@ -60,6 +63,7 @@ export class SettingsStorageService {
   static async updateUserSettings(updates: {
     preferred_model?: string;
     theme_preferences?: any;
+    gpu_acceleration?: boolean;
   }): Promise<UserSettings> {
     const userId = this.getUserId();
     if (!userId) {
@@ -78,6 +82,7 @@ export class SettingsStorageService {
       id: updated.id,
       preferred_model: updated.preferred_model,
       theme_preferences: updated.theme_preferences,
+      gpu_acceleration: updated.gpu_acceleration,
       created_at: updated.created_at,
       updated_at: updated.updated_at,
     };
@@ -90,8 +95,50 @@ export class SettingsStorageService {
     return this.updateUserSettings({ preferred_model: modelId });
   }
 
+  static async setGPUAcceleration(enabled: boolean): Promise<UserSettings> {
+    return this.updateUserSettings({ gpu_acceleration: enabled });
+  }
+
+  // Get GPU acceleration setting (works for both authenticated and unauthenticated users)
+  static getGPUAcceleration(): boolean {
+    const userId = this.getUserId();
+    if (userId) {
+      // Try to get from user settings
+      try {
+        const settingsStr = localStorage.getItem(SETTINGS_KEY);
+        if (settingsStr) {
+          const settings = JSON.parse(settingsStr);
+          return settings.gpu_acceleration ?? true;
+        }
+      } catch {
+        // Fall through to global setting
+      }
+    }
+    
+    // Fall back to global setting for unauthenticated users
+    const globalSetting = localStorage.getItem(GLOBAL_GPU_KEY);
+    // Default to true if not set
+    return globalSetting === null ? true : globalSetting === 'true';
+  }
+
+  // Set GPU acceleration setting (works for both authenticated and unauthenticated users)
+  static setGPUAccelerationGlobal(enabled: boolean): void {
+    const userId = this.getUserId();
+    if (userId) {
+      // Update user settings
+      this.setGPUAcceleration(enabled).catch(() => {
+        // If update fails, fall back to global setting
+        localStorage.setItem(GLOBAL_GPU_KEY, enabled.toString());
+      });
+    } else {
+      // Store in global key for unauthenticated users
+      localStorage.setItem(GLOBAL_GPU_KEY, enabled.toString());
+    }
+  }
+
   static clearSettings(): void {
     localStorage.removeItem(SETTINGS_KEY);
+    localStorage.removeItem(GLOBAL_GPU_KEY);
   }
 }
 

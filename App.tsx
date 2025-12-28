@@ -11,6 +11,7 @@ import { APPS, THEMES } from './constants';
 import { motion } from 'framer-motion';
 import { LogOut } from 'lucide-react';
 import AuthService from './services/authService';
+import SettingsStorageService from './services/settingsStorageService';
 
 const App: React.FC = () => {
   const [windows, setWindows] = useState<WindowState[]>([]);
@@ -32,6 +33,42 @@ const App: React.FC = () => {
     root.style.setProperty('--glass-surface', currentTheme.surface);
     root.style.setProperty('--bg-desktop', currentTheme.wallpaper ? `url(${currentTheme.wallpaper})` : currentTheme.background);
   }, [currentTheme]);
+
+  // Apply GPU acceleration setting to body
+  useEffect(() => {
+    const gpuEnabled = SettingsStorageService.getGPUAcceleration();
+    if (gpuEnabled) {
+      document.body.classList.add('gpu-acceleration');
+    } else {
+      document.body.classList.remove('gpu-acceleration');
+    }
+
+    // Listen for storage changes and custom events to update GPU acceleration in real-time
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'forsion_desktop_settings' || e.key === 'forsion_desktop_gpu_acceleration') {
+        const newGpuEnabled = SettingsStorageService.getGPUAcceleration();
+        if (newGpuEnabled) {
+          document.body.classList.add('gpu-acceleration');
+        } else {
+          document.body.classList.remove('gpu-acceleration');
+        }
+      }
+    };
+    const handleGPUChange = (e: CustomEvent) => {
+      if (e.detail.enabled) {
+        document.body.classList.add('gpu-acceleration');
+      } else {
+        document.body.classList.remove('gpu-acceleration');
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('gpu-acceleration-changed', handleGPUChange as EventListener);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('gpu-acceleration-changed', handleGPUChange as EventListener);
+    };
+  }, []);
 
   // Check authentication status and sync user info from backend
   useEffect(() => {
@@ -124,12 +161,24 @@ const App: React.FC = () => {
   const launchApp = useCallback((appId: AppId) => {
     const existing = windows.find(w => w.appId === appId);
     
-    // Toggle Close Logic: If app is already open, close it.
-    if (existing) {
+    // If app is already open and not minimized, close it (toggle behavior)
+    if (existing && !existing.isMinimized) {
       setWindows(prev => prev.filter(w => w.id !== existing.id));
       return;
     }
 
+    // If app exists but is minimized, restore it and minimize others
+    if (existing && existing.isMinimized) {
+      setWindows(prev => prev.map(w => 
+        w.id === existing.id 
+          ? { ...w, isMinimized: false, zIndex: nextZIndex }
+          : { ...w, isMinimized: true }
+      ));
+      setNextZIndex(z => z + 1);
+      return;
+    }
+
+    // If app doesn't exist, create new window and minimize others
     const appInfo = APPS.find(a => a.id === appId);
     const newWindow: WindowState = {
       id: Math.random().toString(36).substring(7),
@@ -146,7 +195,11 @@ const App: React.FC = () => {
       height: 560
     };
 
-    setWindows(prev => [...prev, newWindow]);
+    // Minimize all other open windows and add new window in one operation
+    setWindows(prev => [
+      ...prev.map(w => ({ ...w, isMinimized: true })),
+      newWindow
+    ]);
     setNextZIndex(z => z + 1);
   }, [windows, nextZIndex]);
 
@@ -272,7 +325,11 @@ const App: React.FC = () => {
         onClose={() => setShowUserSettings(false)}
       />
       
-      <Dock onLaunch={launchApp} activeApps={activeAppIds} />
+      <Dock 
+        onLaunch={launchApp} 
+        activeApps={activeAppIds}
+        onLaunchForsionApp={handleLaunchForsionApp}
+      />
     </div>
   );
 };

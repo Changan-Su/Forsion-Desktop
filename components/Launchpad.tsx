@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Package, Trash2 } from 'lucide-react';
+import { Search, Package, Trash2, MoreVertical, Pin, PinOff, Trash } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -29,6 +29,7 @@ import { APPS, ICON_MAP } from '../constants';
 import { AppId, ForsionApp, DesktopApp } from '../types';
 import forsionDeskService from '../services/forsionDeskService';
 import launchpadOrderService from '../services/launchpadOrderService';
+import dockOrderService from '../services/dockOrderService';
 import { UninstallConfirmDialog } from './UninstallConfirmDialog';
 
 // Forsion App Icon Component
@@ -60,9 +61,19 @@ interface DraggableAppProps {
   app: DesktopApp | ForsionApp;
   isForsionApp: boolean;
   onLaunch: () => void;
+  onUninstall?: (app: ForsionApp) => void;
+  onAddToDock?: (appId: string) => void;
+  onRemoveFromDock?: (appId: string) => void;
 }
 
-const DraggableApp: React.FC<DraggableAppProps> = ({ app, isForsionApp, onLaunch }) => {
+const DraggableApp: React.FC<DraggableAppProps> = ({ 
+  app, 
+  isForsionApp, 
+  onLaunch,
+  onUninstall,
+  onAddToDock,
+  onRemoveFromDock
+}) => {
   const {
     attributes,
     listeners,
@@ -72,6 +83,10 @@ const DraggableApp: React.FC<DraggableAppProps> = ({ app, isForsionApp, onLaunch
     isDragging,
   } = useSortable({ id: app.id });
 
+  const [showMenu, setShowMenu] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition: isDragging ? 'none' : transition,
@@ -80,11 +95,58 @@ const DraggableApp: React.FC<DraggableAppProps> = ({ app, isForsionApp, onLaunch
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    // Only trigger launch if we haven't dragged
-    if (!isDragging && !transform) {
+    // Only trigger launch if we haven't dragged and didn't click on menu
+    if (!isDragging && !transform && !showMenu) {
       onLaunch();
     }
   };
+
+  const handleMenuClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(!showMenu);
+  };
+
+  const handleAddToDock = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onAddToDock) {
+      onAddToDock(app.id);
+    }
+    setShowMenu(false);
+  };
+
+  const handleRemoveFromDock = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onRemoveFromDock) {
+      onRemoveFromDock(app.id);
+    }
+    setShowMenu(false);
+  };
+
+  const handleUninstall = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isForsionApp && onUninstall) {
+      onUninstall(app as ForsionApp);
+    }
+    setShowMenu(false);
+  };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showMenu]);
+
+  const isPinned = dockOrderService.isPinned(app.id);
 
   return (
     <div
@@ -94,16 +156,18 @@ const DraggableApp: React.FC<DraggableAppProps> = ({ app, isForsionApp, onLaunch
       {...listeners}
       className="touch-none cursor-grab active:cursor-grabbing"
       onClick={handleClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex flex-col items-center gap-3 group w-24 cursor-pointer">
+      <div className="flex flex-col items-center gap-3 group w-24 cursor-pointer relative">
         <div 
-          className={`w-20 h-20 rounded-[22px] flex items-center justify-center text-white shadow-lg relative overflow-hidden transition-all duration-300 group-hover:shadow-xl ring-0 group-hover:ring-2 ring-white/20 ${
+          className={`w-20 h-20 rounded-[22px] flex items-center justify-center text-white shadow-lg relative overflow-visible transition-all duration-300 group-hover:shadow-xl ring-0 group-hover:ring-2 ring-white/20 ${
             isForsionApp 
               ? 'bg-gradient-to-br from-purple-500/80 to-pink-500/80' 
               : (app as DesktopApp).color
           }`}
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-[22px]" />
           <div className="w-10 h-10 flex items-center justify-center pointer-events-none">
             {isForsionApp ? (
               <ForsionAppIcon icon={(app as ForsionApp).icon} name={app.name} size={24} />
@@ -111,6 +175,62 @@ const DraggableApp: React.FC<DraggableAppProps> = ({ app, isForsionApp, onLaunch
               ICON_MAP[(app as DesktopApp).icon]
             )}
           </div>
+          
+          {/* Three dots menu button */}
+          {isHovered && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              onClick={handleMenuClick}
+              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white/80 hover:text-white transition-all z-10 pointer-events-auto backdrop-blur-sm"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <MoreVertical size={14} />
+            </motion.button>
+          )}
+
+          {/* Menu dropdown */}
+          <AnimatePresence>
+            {showMenu && (
+              <motion.div
+                ref={menuRef}
+                initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                transition={{ duration: 0.15 }}
+                className="absolute top-full right-0 mt-2 w-40 bg-black/80 backdrop-blur-lg rounded-xl shadow-2xl border border-white/10 overflow-hidden z-50 pointer-events-auto"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                {!isPinned ? (
+                  <button
+                    onClick={handleAddToDock}
+                    className="w-full px-4 py-2.5 text-left text-sm text-white/90 hover:bg-white/10 flex items-center gap-2 transition-colors"
+                  >
+                    <Pin size={14} />
+                    <span>添加到 Dock</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleRemoveFromDock}
+                    className="w-full px-4 py-2.5 text-left text-sm text-white/90 hover:bg-white/10 flex items-center gap-2 transition-colors"
+                  >
+                    <PinOff size={14} />
+                    <span>从 Dock 移除</span>
+                  </button>
+                )}
+                {isForsionApp && (
+                  <button
+                    onClick={handleUninstall}
+                    className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-red-500/20 flex items-center gap-2 transition-colors"
+                  >
+                    <Trash size={14} />
+                    <span>卸载</span>
+                  </button>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         <span className="text-sm font-medium text-white/90 drop-shadow-md text-center leading-tight select-none pointer-events-none">
           {app.name}
@@ -376,12 +496,26 @@ export const Launchpad: React.FC<LaunchpadProps> = ({ onLaunch, onLaunchForsionA
     
     try {
       await forsionDeskService.uninstallApp(uninstallApp.id);
+      // Remove from dock if pinned
+      dockOrderService.removePinnedApp(uninstallApp.id);
       window.dispatchEvent(new CustomEvent('forsion-app-uninstalled'));
     } catch (error) {
       console.error('Failed to uninstall app:', error);
     } finally {
       setUninstallApp(null);
     }
+  };
+
+  const handleAddToDock = (appId: string) => {
+    dockOrderService.addPinnedApp(appId);
+    // Dispatch event to notify Dock to refresh
+    window.dispatchEvent(new CustomEvent('dock-apps-updated'));
+  };
+
+  const handleRemoveFromDock = (appId: string) => {
+    dockOrderService.removePinnedApp(appId);
+    // Dispatch event to notify Dock to refresh
+    window.dispatchEvent(new CustomEvent('dock-apps-updated'));
   };
 
   const isDraggingForsionApp = activeId 
@@ -428,6 +562,9 @@ export const Launchpad: React.FC<LaunchpadProps> = ({ onLaunch, onLaunchForsionA
                     app={app} 
                     isForsionApp={isForsionApp(app)}
                     onLaunch={() => handleLaunch(app)}
+                    onUninstall={isForsionApp(app) ? (app) => setUninstallApp(app) : undefined}
+                    onAddToDock={handleAddToDock}
+                    onRemoveFromDock={handleRemoveFromDock}
                   />
                 ))}
               </div>

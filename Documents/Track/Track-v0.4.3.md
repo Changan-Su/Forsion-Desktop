@@ -1382,3 +1382,938 @@ Invoke-RestMethod -Uri 'http://localhost:3001/api/settings' -Method PUT -Headers
 **头像和昵称功能集成完成时间**: 2025年12月  
 **状态**: ✅ 完成并测试通过
 
+---
+
+## 17. GPU 加速功能集成补充 (后续更新)
+
+### 17.1 需求描述
+
+**需求**: 在设置中添加 GPU 加速开关，允许用户控制动画是否使用硬件加速，以优化性能。
+
+**背景**:
+- 前端使用了大量动画（framer-motion）
+- 动画包括窗口打开/关闭、AI 聊天框布局变化、Dock 图标悬停等
+- 某些动画（如 `height`、`width` 变化）会触发重排（reflow），占用 CPU
+- `backdrop-filter: blur()` 也是 CPU 密集型操作
+- 需要提供选项让用户选择是否启用 GPU 加速优化
+
+**功能范围**:
+1. **设置 UI**: 在设置页面添加 GPU 加速开关
+2. **CSS 优化**: 根据开关状态应用硬件加速样式
+3. **组件级优化**: 为动画组件添加条件性 GPU 加速样式
+4. **实时生效**: 切换后立即应用，无需刷新页面
+
+### 17.2 实现方案
+
+#### 17.2.1 类型定义扩展
+
+**文件**: `types/shared.ts`
+
+**变更**:
+```typescript
+export interface UserSettings {
+  id: number;
+  user_id: number;
+  preferred_model?: string;
+  theme_preferences?: any;
+  gpu_acceleration?: boolean;  // 新增字段
+  created_at: string;
+  updated_at: string;
+}
+```
+
+**决策**: 
+- 使用可选字段，确保向后兼容
+- 默认值为 `true`（开启 GPU 加速）
+
+#### 17.2.2 存储服务更新
+
+**文件**: `services/settingsStorageService.ts`
+
+**新增功能**:
+```typescript
+// 获取 GPU 加速设置（支持已登录和未登录用户）
+static getGPUAcceleration(): boolean {
+  const userId = this.getUserId();
+  if (userId) {
+    // 从用户设置中读取
+    const settingsStr = localStorage.getItem(SETTINGS_KEY);
+    if (settingsStr) {
+      const settings = JSON.parse(settingsStr);
+      return settings.gpu_acceleration ?? true;  // 默认 true
+    }
+  }
+  
+  // 未登录用户使用全局设置
+  const globalSetting = localStorage.getItem(GLOBAL_GPU_KEY);
+  return globalSetting === null ? true : globalSetting === 'true';
+}
+
+// 设置 GPU 加速（支持已登录和未登录用户）
+static setGPUAccelerationGlobal(enabled: boolean): void {
+  const userId = this.getUserId();
+  if (userId) {
+    // 更新用户设置
+    this.setGPUAcceleration(enabled).catch(() => {
+      // 如果更新失败，回退到全局设置
+      localStorage.setItem(GLOBAL_GPU_KEY, enabled.toString());
+    });
+  } else {
+    // 未登录用户存储到全局 key
+    localStorage.setItem(GLOBAL_GPU_KEY, enabled.toString());
+  }
+}
+```
+
+**设计决策**:
+- 支持已登录和未登录用户（使用不同的存储 key）
+- 默认值设为 `true`，提供更好的性能体验
+- 使用 `??` 运算符处理 `null` 和 `undefined`
+
+#### 17.2.3 CSS 样式定义
+
+**文件**: `index.html`
+
+**新增样式**:
+```css
+/* GPU 加速样式 - 仅在 .gpu-acceleration 类激活时生效 */
+body.gpu-acceleration .glass,
+body.gpu-acceleration .glass-dark {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+body.gpu-acceleration [data-gpu-accelerated] {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+```
+
+**GPU 加速技术**:
+- `will-change`: 提示浏览器该元素将发生变化，提前优化
+- `transform: translateZ(0)`: 强制创建新的层叠上下文，触发硬件加速
+- `backface-visibility: hidden`: 优化 3D 变换性能
+
+#### 17.2.4 设置 UI 实现
+
+**文件**: `components/WindowManager.tsx` (SettingsContent 组件)
+
+**实现细节**:
+```typescript
+const SettingsContent: React.FC<{...}> = ({ currentTheme, onThemeChange }) => {
+  const [gpuAcceleration, setGpuAcceleration] = useState<boolean>(true);
+
+  // 加载 GPU 加速设置
+  useEffect(() => {
+    const gpuEnabled = SettingsStorageService.getGPUAcceleration();
+    setGpuAcceleration(gpuEnabled);
+  }, []);
+
+  const handleGPUAccelerationToggle = async (enabled: boolean) => {
+    setGpuAcceleration(enabled);
+    SettingsStorageService.setGPUAccelerationGlobal(enabled);
+    
+    // 立即应用到 body
+    if (enabled) {
+      document.body.classList.add('gpu-acceleration');
+    } else {
+      document.body.classList.remove('gpu-acceleration');
+    }
+
+    // 触发自定义事件通知其他组件
+    window.dispatchEvent(new CustomEvent('gpu-acceleration-changed', { 
+      detail: { enabled } 
+    }));
+  };
+
+  return (
+    <section>
+      <h3>Performance</h3>
+      <div className="glass p-4 rounded-xl">
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <div className="text-sm font-bold text-surface-text mb-1">
+              GPU Acceleration
+            </div>
+            <div className="text-xs text-surface-text opacity-60">
+              Use hardware acceleration for smoother animations
+            </div>
+          </div>
+          <button
+            onClick={() => handleGPUAccelerationToggle(!gpuAcceleration)}
+            className={`relative w-14 h-8 rounded-full transition-colors duration-200 ${
+              gpuAcceleration ? 'bg-accent' : 'bg-gray-400'
+            }`}
+          >
+            <span
+              className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
+                gpuAcceleration ? 'translate-x-6' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+};
+```
+
+**UI 设计**:
+- 使用切换开关（Toggle Switch）UI
+- 开启时显示主题色，关闭时显示灰色
+- 开关滑块有平滑的过渡动画
+- 提供清晰的说明文字
+
+#### 17.2.5 根组件应用
+
+**文件**: `App.tsx`
+
+**实现细节**:
+```typescript
+// 应用 GPU 加速设置到 body
+useEffect(() => {
+  const gpuEnabled = SettingsStorageService.getGPUAcceleration();
+  if (gpuEnabled) {
+    document.body.classList.add('gpu-acceleration');
+  } else {
+    document.body.classList.remove('gpu-acceleration');
+  }
+
+  // 监听存储变化和自定义事件
+  const handleStorageChange = (e: StorageEvent) => {
+    if (e.key === 'forsion_desktop_settings' || e.key === 'forsion_desktop_gpu_acceleration') {
+      const newGpuEnabled = SettingsStorageService.getGPUAcceleration();
+      if (newGpuEnabled) {
+        document.body.classList.add('gpu-acceleration');
+      } else {
+        document.body.classList.remove('gpu-acceleration');
+      }
+    }
+  };
+  
+  const handleGPUChange = (e: CustomEvent) => {
+    if (e.detail.enabled) {
+      document.body.classList.add('gpu-acceleration');
+    } else {
+      document.body.classList.remove('gpu-acceleration');
+    }
+  };
+
+  window.addEventListener('storage', handleStorageChange);
+  window.addEventListener('gpu-acceleration-changed', handleGPUChange as EventListener);
+  
+  return () => {
+    window.removeEventListener('storage', handleStorageChange);
+    window.removeEventListener('gpu-acceleration-changed', handleGPUChange as EventListener);
+  };
+}, []);
+```
+
+**设计决策**:
+- 启动时立即应用设置
+- 监听 `storage` 事件（跨标签页同步）
+- 监听自定义事件（同标签页内实时更新）
+
+#### 17.2.6 动画组件优化
+
+**文件**: `components/WindowManager.tsx`, `components/AIChat.tsx`, `components/Dock.tsx`
+
+**实现模式**:
+```typescript
+const [gpuAcceleration, setGpuAcceleration] = useState<boolean>(true);
+
+useEffect(() => {
+  const gpuEnabled = SettingsStorageService.getGPUAcceleration();
+  setGpuAcceleration(gpuEnabled);
+
+  // 监听存储变化和自定义事件
+  const handleStorageChange = () => {
+    setGpuAcceleration(SettingsStorageService.getGPUAcceleration());
+  };
+  const handleGPUChange = (e: CustomEvent) => {
+    setGpuAcceleration(e.detail.enabled);
+  };
+  
+  window.addEventListener('storage', handleStorageChange);
+  window.addEventListener('gpu-acceleration-changed', handleGPUChange as EventListener);
+  
+  return () => {
+    window.removeEventListener('storage', handleStorageChange);
+    window.removeEventListener('gpu-acceleration-changed', handleGPUChange as EventListener);
+  };
+}, []);
+
+// 条件性应用 GPU 加速样式
+const gpuStyle = gpuAcceleration ? {
+  willChange: 'transform, opacity' as const,
+  transform: 'translateZ(0)',
+} : {};
+
+return (
+  <motion.div
+    data-gpu-accelerated={gpuAcceleration ? 'true' : undefined}
+    style={gpuStyle}
+    // ... other props
+  >
+    {/* content */}
+  </motion.div>
+);
+```
+
+**优化的组件**:
+1. **WindowManager**: 窗口打开/关闭动画
+2. **AIChat**: 聊天框布局变化动画
+3. **Dock**: 图标悬停和点击动画
+
+### 17.3 遇到的问题与解决方案
+
+#### 17.3.1 实时更新问题
+
+**问题**: 在同一标签页内切换设置时，其他组件无法立即响应。
+
+**原因**: `storage` 事件只在跨标签页时触发，同标签页内不会触发。
+
+**解决方案**:
+- 使用自定义事件 `gpu-acceleration-changed` 通知同标签页内的组件
+- 在设置切换时立即触发事件
+- 所有组件同时监听 `storage` 事件和自定义事件
+
+```typescript
+// 设置切换时
+window.dispatchEvent(new CustomEvent('gpu-acceleration-changed', { 
+  detail: { enabled } 
+}));
+
+// 组件监听
+window.addEventListener('gpu-acceleration-changed', handleGPUChange as EventListener);
+```
+
+#### 17.3.2 默认值处理
+
+**问题**: 首次使用应用时，localStorage 中没有设置值，需要合理的默认值。
+
+**解决方案**:
+- 使用 `??` 运算符处理 `null` 和 `undefined`
+- 默认值设为 `true`（开启 GPU 加速）
+- 在 `getGPUAcceleration()` 中明确处理未设置的情况
+
+```typescript
+// 未设置时返回 true
+return globalSetting === null ? true : globalSetting === 'true';
+```
+
+#### 17.3.3 类型安全
+
+**问题**: `willChange` 属性需要特定的字符串字面量类型。
+
+**解决方案**:
+- 使用 `as const` 断言确保类型安全
+- 明确指定 `willChange` 的类型为 `'transform, opacity'`
+
+```typescript
+const gpuStyle = gpuAcceleration ? {
+  willChange: 'transform, opacity' as const,
+  transform: 'translateZ(0)',
+} : {};
+```
+
+### 17.4 性能影响分析
+
+#### 17.4.1 GPU 加速的优势
+
+1. **减少 CPU 占用**: 动画计算转移到 GPU，释放 CPU 资源
+2. **更流畅的动画**: GPU 并行处理能力更强，60fps 更容易达到
+3. **减少重排**: `transform` 和 `opacity` 不会触发重排，只触发合成
+
+#### 17.4.2 潜在问题
+
+1. **内存占用**: GPU 加速会创建新的层，增加内存使用
+2. **电池消耗**: 某些设备上 GPU 可能比 CPU 更耗电
+3. **兼容性**: 极少数老旧设备可能不支持硬件加速
+
+**权衡**: 默认开启，但允许用户关闭，提供灵活性。
+
+### 17.5 代码变更统计
+
+#### 17.5.1 新增功能
+
+1. **类型定义**: `types/shared.ts` - 添加 `gpu_acceleration` 字段
+2. **存储方法**: `services/settingsStorageService.ts` - 添加 GPU 加速相关方法
+3. **CSS 样式**: `index.html` - 添加 GPU 加速样式类
+4. **设置 UI**: `components/WindowManager.tsx` - 添加切换开关
+
+#### 17.5.2 修改文件
+
+1. **App.tsx**: 添加 body 类应用逻辑
+2. **WindowManager.tsx**: 添加条件性 GPU 样式
+3. **AIChat.tsx**: 添加条件性 GPU 样式
+4. **Dock.tsx**: 添加条件性 GPU 样式
+
+### 17.6 测试验证
+
+#### 17.6.1 功能测试
+
+- [x] 设置页面显示 GPU 加速开关
+- [x] 开关可以正常切换
+- [x] 切换后立即生效（无需刷新）
+- [x] 设置持久化保存
+- [x] 已登录和未登录用户都能使用
+- [x] 跨标签页同步设置
+
+#### 17.6.2 性能测试
+
+- [x] 开启 GPU 加速后，动画更流畅
+- [x] CPU 使用率降低（通过浏览器 DevTools 观察）
+- [x] 关闭 GPU 加速后，动画仍正常工作
+
+### 17.7 关键设计决策
+
+#### 17.7.1 默认值选择
+
+**决策**: 默认开启 GPU 加速
+
+**理由**:
+- 现代设备普遍支持硬件加速
+- 提供更好的性能体验
+- 用户可以随时关闭
+
+#### 17.7.2 存储策略
+
+**决策**: 支持已登录和未登录用户
+
+**理由**:
+- 提供一致的用户体验
+- 未登录用户也能享受性能优化
+- 使用不同的存储 key 避免冲突
+
+#### 17.7.3 实时更新机制
+
+**决策**: 使用自定义事件 + storage 事件
+
+**理由**:
+- 自定义事件处理同标签页更新
+- storage 事件处理跨标签页同步
+- 双重机制确保所有场景都能正常工作
+
+### 17.8 后续优化建议
+
+#### 17.8.1 短期优化
+
+1. **性能监控**: 添加性能指标收集，帮助用户了解 GPU 加速的实际效果
+2. **自动检测**: 检测设备是否支持硬件加速，自动调整默认值
+3. **动画优化**: 进一步优化动画代码，减少不必要的重排
+
+#### 17.8.2 长期优化
+
+1. **细粒度控制**: 允许用户为不同类型的动画分别设置 GPU 加速
+2. **性能报告**: 显示 GPU 加速前后的性能对比数据
+3. **智能推荐**: 根据设备性能自动推荐最佳设置
+
+### 17.9 相关文件清单
+
+**修改文件**:
+- `types/shared.ts` - 添加 gpu_acceleration 字段
+- `services/settingsStorageService.ts` - 添加 GPU 加速相关方法
+- `index.html` - 添加 GPU 加速 CSS 样式
+- `components/WindowManager.tsx` - 添加设置 UI 和组件优化
+- `components/AIChat.tsx` - 添加组件级 GPU 加速
+- `components/Dock.tsx` - 添加组件级 GPU 加速
+- `App.tsx` - 添加 body 类应用逻辑
+
+---
+
+**GPU 加速功能集成完成时间**: 2025年12月  
+**状态**: ✅ 完成并测试通过  
+**默认值**: 开启（true）
+
+---
+
+## 18. Launchpad 拖拽偏移和垃圾桶碰撞检测问题修复 (后续更新)
+
+### 18.1 问题描述
+
+**问题**: 在实现 Launchpad 应用的拖拽排序和卸载功能后，用户报告了两个关键问题：
+
+1. **拖拽偏移问题**: "应用拖拽不跟随鼠标，有明显偏移"
+   - 拖拽应用时，拖拽预览（DragOverlay）的位置与鼠标指针不匹配
+   - 有明显的视觉偏移，影响用户体验
+
+2. **垃圾桶碰撞检测问题**: "拖到垃圾桶的位置不生效了" / "碰到了垃圾桶又不能卸载了"
+   - 当 DragOverlay 在 `document.body` 中时，垃圾桶碰撞检测失效
+   - 无法正确检测鼠标是否悬停在垃圾桶区域上
+
+**技术背景**:
+- 使用了 `@dnd-kit` 库实现拖拽功能
+- DragOverlay 用于显示拖拽预览
+- TrashZone 用于接收拖拽的应用进行卸载
+- Launchpad 在 WindowManager 的窗口容器内（有 `overflow-hidden` 等样式）
+
+### 18.2 问题分析
+
+#### 18.2.1 拖拽偏移的根本原因
+
+**初步分析**:
+- DragOverlay 默认渲染在 DndContext 的 DOM 树中
+- 如果 DndContext 位于有 `transform`、`position: relative/absolute` 的容器内
+- 或者容器有 `overflow: hidden`，会影响 DragOverlay 的定位计算
+- WindowManager 的窗口容器使用了 `absolute` 定位和 `overflow-hidden`
+
+**验证方法**:
+- 检查 WindowManager 容器的 CSS 样式
+- 查看 DragOverlay 的渲染位置
+- 测试 DragOverlay 在不同容器中的表现
+
+#### 18.2.2 垃圾桶碰撞检测失效的原因
+
+**问题链**:
+1. 为了修复偏移，将 DragOverlay 使用 `createPortal` 渲染到 `document.body`
+2. 此时 DragOverlay 和 TrashZone 不在同一个 DOM 层级
+3. `dnd-kit` 的默认碰撞检测（`closestCenter` 或 `rectIntersection`）可能无法正确工作
+4. `pointerWithin` 碰撞检测也可能因为坐标系统不一致而失效
+
+**验证方法**:
+- 检查 TrashZone 的 DOM 位置（是否在 Launchpad 容器内）
+- 检查 DragOverlay 的 DOM 位置（是否在 body 中）
+- 测试默认碰撞检测的行为
+
+### 18.3 解决方案演进
+
+#### 18.3.1 第一次尝试：调整传感器和透明度
+
+**尝试内容**:
+```typescript
+// 将 MouseSensor 改为 PointerSensor（统一处理鼠标和触摸）
+const sensors = useSensors(
+  useSensor(PointerSensor, {
+    activationConstraint: { distance: 8 },
+  })
+);
+
+// 在 DraggableApp 中调整样式
+const style = {
+  transform: CSS.Transform.toString(transform),
+  transition: isDragging ? 'none' : transition,
+  opacity: isDragging ? 0.4 : 1, // 改为完全隐藏
+  zIndex: isDragging ? 1 : 'auto',
+};
+```
+
+**结果**: ❌ 用户反馈"还是不对，有明显偏移"
+
+**分析**: 
+- 传感器类型改变不能解决定位问题
+- 透明度调整只是视觉优化，不能解决根本问题
+
+#### 18.3.2 第二次尝试：使用 createPortal 渲染 DragOverlay
+
+**尝试内容**:
+```typescript
+// 将 DragOverlay 渲染到 document.body
+{createPortal(
+  <DragOverlay
+    style={{ cursor: 'grabbing' }}
+    dropAnimation={null}
+  >
+    {activeApp ? <AppPreview app={activeApp} /> : null}
+  </DragOverlay>,
+  document.body
+)}
+```
+
+**结果**: ✅ 拖拽偏移问题解决，但 ❌ 垃圾桶碰撞检测失效
+
+**分析**:
+- DragOverlay 在 body 中，不受父容器影响，定位准确
+- 但此时 TrashZone 仍在 Launchpad 容器内
+- 两者不在同一 DOM 层级，碰撞检测失效
+
+#### 18.3.3 第三次尝试：同时将 TrashZone 也渲染到 body
+
+**尝试内容**:
+```typescript
+// 将 TrashZone 也通过 createPortal 渲染到 body
+{createPortal(
+  <TrashZone 
+    isActive={!!activeId} 
+    isDraggingForsionApp={isDraggingForsionApp} 
+  />,
+  document.body
+)}
+```
+
+**结果**: ✅ 碰撞检测恢复，但 ❌ 垃圾桶位置不对（在屏幕右下角而不是 Launchpad 窗口内）
+
+**用户需求**: 垃圾桶应该在 Launchpad 窗口内部的右下角
+
+**分析**:
+- TrashZone 使用 `fixed` 定位，相对于视口定位
+- 无法相对于 Launchpad 窗口定位
+
+#### 18.3.4 最终方案：自定义碰撞检测 + onDragOver 事件
+
+**核心思路**:
+1. DragOverlay 仍在 `document.body` 中（解决偏移）
+2. TrashZone 保持在 Launchpad 容器内，使用 `absolute` 定位（满足位置需求）
+3. 实现自定义碰撞检测，基于坐标手动计算
+4. 使用 `onDragOver` 事件和手动状态管理，确保高亮显示正确
+
+**实现细节**:
+
+**1. 自定义碰撞检测函数**:
+```typescript
+const trashZoneRef = React.useRef<HTMLDivElement>(null);
+
+const customCollisionDetection = useCallback<CollisionDetection>((args) => {
+  const { pointerCoordinates, droppableContainers, active } = args;
+  
+  if (!pointerCoordinates || !active) {
+    return rectIntersection(args);
+  }
+  
+  // 只检查 Forsion App
+  const draggedApp = orderedApps.find(a => a.id === active.id);
+  if (!draggedApp || !isForsionApp(draggedApp)) {
+    return rectIntersection(args);
+  }
+  
+  // 使用 ref 获取垃圾桶位置，手动计算碰撞
+  if (trashZoneRef.current) {
+    const rect = trashZoneRef.current.getBoundingClientRect();
+    const { x, y } = pointerCoordinates;
+    
+    if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+      const trashContainer = droppableContainers.find(container => container.id === 'trash-zone');
+      if (trashContainer) {
+        return [{ id: 'trash-zone', data: { droppableContainer: trashContainer } }];
+      }
+    }
+  }
+  
+  // 否则使用默认的矩形相交检测用于排序
+  return rectIntersection(args);
+}, [orderedApps]);
+```
+
+**2. onDragOver 事件处理**:
+```typescript
+const [isOverTrash, setIsOverTrash] = useState(false);
+
+const handleDragOver = (event: DragOverEvent) => {
+  const { over, active } = event;
+  
+  // 只检查 Forsion App
+  const draggedApp = orderedApps.find(a => a.id === active.id);
+  if (!draggedApp || !isForsionApp(draggedApp)) {
+    setIsOverTrash(false);
+    return;
+  }
+  
+  // 根据碰撞检测结果更新状态
+  setIsOverTrash(over?.id === 'trash-zone');
+};
+```
+
+**3. TrashZone 组件修改**:
+```typescript
+const TrashZone: React.FC<TrashZoneProps & { trashZoneRef: React.RefObject<HTMLDivElement>, isOverTrash: boolean }> = 
+  ({ isActive, isDraggingForsionApp, trashZoneRef, isOverTrash }) => {
+  const { setNodeRef } = useDroppable({
+    id: 'trash-zone',
+    disabled: !isDraggingForsionApp,
+  });
+
+  // 合并 refs
+  const combinedRef = (node: HTMLDivElement | null) => {
+    setNodeRef(node);
+    if (trashZoneRef) {
+      (trashZoneRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    }
+  };
+
+  return (
+    <motion.div
+      ref={combinedRef}
+      className={`absolute bottom-8 right-8 w-24 h-24 rounded-3xl flex items-center justify-center ${
+        isOverTrash ? 'bg-red-500 scale-110 shadow-red-500/50' : 'bg-red-500/60'
+      } backdrop-blur-lg border-4 border-white/40 shadow-2xl transition-all duration-200 z-50 pointer-events-auto`}
+      // ... 动画属性
+    >
+      <Trash2 size={40} className="text-white" />
+    </motion.div>
+  );
+};
+```
+
+**4. DndContext 配置**:
+```typescript
+<DndContext
+  sensors={sensors}
+  collisionDetection={customCollisionDetection}  // 使用自定义碰撞检测
+  onDragStart={handleDragStart}
+  onDragOver={handleDragOver}  // 添加 onDragOver 处理
+  onDragEnd={handleDragEnd}
+>
+  {/* Launchpad 内容 */}
+  <TrashZone 
+    isActive={!!activeId} 
+    isDraggingForsionApp={isDraggingForsionApp}
+    trashZoneRef={trashZoneRef}
+    isOverTrash={isOverTrash}  // 传递手动状态
+  />
+  
+  {/* DragOverlay 在 body 中 */}
+  {createPortal(
+    <DragOverlay style={{ cursor: 'grabbing' }} dropAnimation={null}>
+      {activeApp ? <AppPreview app={activeApp} /> : null}
+    </DragOverlay>,
+    document.body
+  )}
+</DndContext>
+```
+
+### 18.4 关键代码片段
+
+#### 18.4.1 完整的碰撞检测实现
+
+```typescript
+// Ref for trash zone element to get its position
+const trashZoneRef = React.useRef<HTMLDivElement>(null);
+
+// Custom collision detection that prioritizes trash zone
+const customCollisionDetection = useCallback<CollisionDetection>((args) => {
+  const { pointerCoordinates, droppableContainers, active } = args;
+  
+  if (!pointerCoordinates || !active) {
+    return rectIntersection(args);
+  }
+  
+  // Only check trash zone if dragging a Forsion app
+  const draggedApp = orderedApps.find(a => a.id === active.id);
+  if (!draggedApp || !isForsionApp(draggedApp)) {
+    return rectIntersection(args);
+  }
+  
+  // Check if pointer is over trash zone using ref
+  if (trashZoneRef.current) {
+    const rect = trashZoneRef.current.getBoundingClientRect();
+    const { x, y } = pointerCoordinates;
+    
+    if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+      const trashContainer = droppableContainers.find(container => container.id === 'trash-zone');
+      if (trashContainer) {
+        return [{ id: 'trash-zone', data: { droppableContainer: trashContainer } }];
+      }
+    }
+  }
+  
+  // Otherwise use rect intersection for sortable items
+  return rectIntersection(args);
+}, [orderedApps]);
+```
+
+#### 18.4.2 事件处理逻辑
+
+```typescript
+const handleDragStart = (event: DragStartEvent) => {
+  setActiveId(event.active.id as string);
+  setIsOverTrash(false);
+};
+
+const handleDragOver = (event: DragOverEvent) => {
+  const { over, active } = event;
+  
+  // Only check trash zone if dragging a Forsion app
+  const draggedApp = orderedApps.find(a => a.id === active.id);
+  if (!draggedApp || !isForsionApp(draggedApp)) {
+    setIsOverTrash(false);
+    return;
+  }
+  
+  // Update state based on collision detection result
+  setIsOverTrash(over?.id === 'trash-zone');
+};
+
+const handleDragEnd = async (event: DragEndEvent) => {
+  const { active, over } = event;
+  
+  // Check if dropped on trash
+  if (over?.id === 'trash-zone') {
+    const app = orderedApps.find(a => a.id === active.id);
+    if (app && isForsionApp(app)) {
+      setUninstallApp(app);
+    }
+    setActiveId(null);
+    setIsOverTrash(false);
+    return;
+  }
+  
+  // Handle reordering...
+  setActiveId(null);
+  setIsOverTrash(false);
+};
+```
+
+### 18.5 遇到的问题与解决方案
+
+#### 18.5.1 碰撞检测函数的作用域问题
+
+**问题**: `customCollisionDetection` 函数中需要使用 `orderedApps`，但函数定义在组件顶层，`orderedApps` 是状态变量。
+
+**解决方案**:
+- 使用 `useCallback` 包装碰撞检测函数
+- 将 `orderedApps` 添加到依赖数组
+- 确保函数能访问最新的状态
+
+```typescript
+const customCollisionDetection = useCallback<CollisionDetection>((args) => {
+  // ... 使用 orderedApps
+}, [orderedApps]);
+```
+
+#### 18.5.2 TrashZone ref 合并问题
+
+**问题**: `useDroppable` 需要 `setNodeRef`，同时需要将 ref 传递给 `trashZoneRef` 用于碰撞检测。
+
+**解决方案**:
+- 创建一个合并 ref 的函数
+- 同时调用 `setNodeRef` 和更新 `trashZoneRef.current`
+
+```typescript
+const combinedRef = (node: HTMLDivElement | null) => {
+  setNodeRef(node);
+  if (trashZoneRef) {
+    (trashZoneRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+  }
+};
+```
+
+#### 18.5.3 状态更新时机
+
+**问题**: `isOverTrash` 状态需要在拖拽开始时重置，在拖拽结束时清理。
+
+**解决方案**:
+- 在 `handleDragStart` 中重置为 `false`
+- 在 `handleDragOver` 中根据碰撞检测结果更新
+- 在 `handleDragEnd` 中重置为 `false`
+
+### 18.6 最终方案总结
+
+**核心策略**:
+1. **DragOverlay 在 body 中**: 使用 `createPortal` 渲染到 `document.body`，确保不受父容器样式影响，精确定位
+2. **TrashZone 在容器内**: 使用 `absolute` 定位，相对于 Launchpad 容器定位
+3. **自定义碰撞检测**: 基于 `getBoundingClientRect()` 和 `pointerCoordinates` 手动计算碰撞
+4. **手动状态管理**: 使用 `onDragOver` 事件和 `isOverTrash` 状态管理高亮显示
+
+**优势**:
+- ✅ 拖拽完全跟随鼠标（无偏移）
+- ✅ 垃圾桶在 Launchpad 窗口内部右下角（满足 UI 需求）
+- ✅ 碰撞检测准确可靠
+- ✅ 垃圾桶高亮显示正确
+- ✅ 排序功能正常工作（使用 `rectIntersection` 作为后备）
+
+### 18.7 经验教训
+
+#### 18.7.1 Portal 的使用场景
+
+**教训**: 
+- 当元素需要精确定位时，考虑使用 Portal 渲染到 body
+- Portal 可以避免父容器的 CSS 样式（如 `transform`、`overflow`）影响定位
+- 但 Portal 中的元素和其他元素不在同一 DOM 层级时，需要特殊处理交互
+
+#### 18.7.2 碰撞检测的复杂性
+
+**教训**:
+- `dnd-kit` 的默认碰撞检测在某些场景下可能不够准确
+- 当元素在不同 DOM 层级时，需要手动实现碰撞检测
+- 使用 `getBoundingClientRect()` 和坐标比较是可靠的方法
+
+#### 18.7.3 状态同步的重要性
+
+**教训**:
+- 碰撞检测结果和 UI 状态（如高亮）需要同步
+- 使用 `onDragOver` 事件确保状态及时更新
+- 在拖拽开始和结束时正确重置状态，避免状态残留
+
+#### 18.7.4 用户需求的重要性
+
+**教训**:
+- 技术方案需要平衡功能需求和用户体验
+- 垃圾桶位置需求（窗口内部 vs 屏幕）影响了实现方案的选择
+- 最终方案需要同时满足所有需求（偏移修复 + 位置正确 + 碰撞检测）
+
+### 18.8 代码变更统计
+
+#### 18.8.1 修改文件
+
+1. **`components/Launchpad.tsx`**
+   - 添加 `trashZoneRef` ref
+   - 实现 `customCollisionDetection` 函数
+   - 添加 `isOverTrash` 状态
+   - 添加 `handleDragOver` 事件处理
+   - 修改 `handleDragStart` 和 `handleDragEnd` 重置状态
+   - 将 DragOverlay 使用 `createPortal` 渲染到 body
+   - 修改 TrashZone 组件传递 ref 和状态
+
+2. **导入更新**:
+   - 添加 `DragOverEvent` 导入
+   - 添加 `rectIntersection`, `CollisionDetection` 导入
+   - 添加 `createPortal` 导入（从 'react-dom'）
+
+#### 18.8.2 关键代码行数
+
+- 自定义碰撞检测函数: ~30 行
+- 事件处理函数: ~20 行
+- TrashZone 组件修改: ~15 行
+
+### 18.9 测试验证
+
+#### 18.9.1 功能测试
+
+- [x] 拖拽应用时，预览完全跟随鼠标（无偏移）
+- [x] 垃圾桶显示在 Launchpad 窗口内部右下角
+- [x] 拖拽 Forsion App 到垃圾桶时，垃圾桶正确高亮
+- [x] 拖拽非 Forsion App 时，垃圾桶不响应
+- [x] 松开鼠标在垃圾桶上时，触发卸载确认对话框
+- [x] 应用排序功能正常工作
+- [x] 拖拽开始和结束时状态正确重置
+
+#### 18.9.2 边界情况测试
+
+- [x] 快速拖拽时碰撞检测仍然准确
+- [x] 垃圾桶动画（scale 和 opacity）正常工作
+- [x] 多个应用连续拖拽时状态正确
+
+### 18.10 后续优化建议
+
+#### 18.10.1 性能优化
+
+1. **碰撞检测优化**: 如果应用数量很大，可以考虑优化碰撞检测的触发频率
+2. **防抖处理**: 对 `handleDragOver` 中的状态更新可以考虑防抖
+
+#### 18.10.2 用户体验优化
+
+1. **视觉反馈**: 可以添加更多的视觉反馈，如拖拽时的拖影效果
+2. **音效反馈**: 可以添加音效提示（拖拽到垃圾桶时）
+
+#### 18.10.3 代码优化
+
+1. **类型安全**: 可以进一步完善类型定义，减少类型断言的使用
+2. **代码复用**: 如果其他组件也需要类似的拖拽功能，可以考虑提取公共逻辑
+
+### 18.11 相关文件清单
+
+**修改文件**:
+- `components/Launchpad.tsx` - 添加自定义碰撞检测、事件处理、Portal 渲染
+
+**依赖库**:
+- `@dnd-kit/core` - 提供拖拽功能
+- `@dnd-kit/sortable` - 提供排序功能
+- `@dnd-kit/utilities` - 提供工具函数
+- `react-dom` - 提供 `createPortal`
+
+---
+
+**拖拽偏移和垃圾桶碰撞检测修复完成时间**: 2025年12月  
+**状态**: ✅ 完成并测试通过  
+**最终方案**: 自定义碰撞检测 + Portal + 手动状态管理

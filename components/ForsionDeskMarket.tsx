@@ -168,7 +168,7 @@ export const ForsionDeskMarket: React.FC<ForsionDeskMarketProps> = ({ onAppInsta
       {/* Header */}
       <div className="p-5 bg-white/20 flex items-center justify-between border-b border-white/30 rounded-t-2xl">
         <div className="flex items-center space-x-3 flex-1">
-          <h3 className="text-xl font-bold text-surface-text">Forsion Desk Market</h3>
+          <h3 className="text-xl font-bold text-surface-text">App Market</h3>
           <div className="relative flex-1 max-w-sm">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-text opacity-50" />
             <input 

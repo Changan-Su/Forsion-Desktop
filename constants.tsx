@@ -54,8 +54,7 @@ export const APPS: DesktopApp[] = [
   { id: 'recipe', name: 'Recipe', icon: 'Utensils', color: 'bg-accent' },
   { id: 'studio', name: 'Studio', icon: 'Palette', color: 'bg-accent' }, 
   { id: 'notes', name: 'Quick Notes', icon: 'StickyNote', color: 'bg-white/20' },
-  { id: 'app-market', name: 'App Market', icon: 'ShoppingBag', color: 'bg-white/20' },
-  { id: 'forsion-desk-market', name: 'Desk Market', icon: 'Store', color: 'bg-gradient-to-br from-purple-500/80 to-pink-500/80' },
+  { id: 'forsion-desk-market', name: 'App Market', icon: 'Store', color: 'bg-gradient-to-br from-purple-500/80 to-pink-500/80' },
   { id: 'launchpad', name: 'Launchpad', icon: 'LayoutGrid', color: 'bg-white/20' },
   { id: 'settings', name: 'Settings', icon: 'Settings', color: 'bg-accent' },
 ];

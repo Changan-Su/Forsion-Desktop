@@ -6,6 +6,7 @@ import { ChatMessage, Session, AIModel } from '../types';
 import ChatService from '../services/chatService';
 import ModelService from '../services/modelService';
 import AuthService from '../services/authService';
+import SettingsStorageService from '../services/settingsStorageService';
 import Avatar from './Avatar';
 
 interface AIChatProps {
@@ -27,6 +28,7 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, hasAppOpen = fa
   const [showSessions, setShowSessions] = useState(false);
   const [showModels, setShowModels] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [gpuAcceleration, setGpuAcceleration] = useState<boolean>(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,6 +36,26 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, hasAppOpen = fa
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isOpen]);
+
+  // Load GPU acceleration setting
+  useEffect(() => {
+    const gpuEnabled = SettingsStorageService.getGPUAcceleration();
+    setGpuAcceleration(gpuEnabled);
+
+    // Listen for storage changes and custom events
+    const handleStorageChange = () => {
+      setGpuAcceleration(SettingsStorageService.getGPUAcceleration());
+    };
+    const handleGPUChange = (e: CustomEvent) => {
+      setGpuAcceleration(e.detail.enabled);
+    };
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('gpu-acceleration-changed', handleGPUChange as EventListener);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('gpu-acceleration-changed', handleGPUChange as EventListener);
+    };
+  }, []);
 
   const [layoutConfig, setLayoutConfig] = useState({ x: 0, width: 680 });
 
@@ -260,6 +282,11 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, hasAppOpen = fa
     }
   };
 
+  const gpuStyle = gpuAcceleration ? {
+    willChange: 'transform, opacity' as const,
+    transform: 'translateZ(0)',
+  } : {};
+
   return (
     <div className="fixed inset-0 z-[10001] flex items-center justify-center pointer-events-none">
       <motion.div
@@ -274,6 +301,8 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, hasAppOpen = fa
         }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         className="w-full max-w-[680px] rounded-[32px] flex flex-col overflow-hidden shadow-[0_32px_80px_-20px_rgba(0,0,0,0.2)] border border-white/40 pointer-events-auto glass-dark"
+        data-gpu-accelerated={gpuAcceleration ? 'true' : undefined}
+        style={gpuStyle}
       >
         <AnimatePresence>
           {isOpen && (

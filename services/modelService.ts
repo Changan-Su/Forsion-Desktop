@@ -4,7 +4,7 @@ import SettingsStorageService from './settingsStorageService';
 
 export type { AIModel, UserSettings };
 
-// Backend Service model format (from /api/models)
+// Backend Service model format (from /api/projects/:projectId/models)
 interface BackendModel {
   id: string;
   name: string;
@@ -16,6 +16,9 @@ interface BackendModel {
   defaultBaseUrl?: string;
 }
 
+// Desktop 应用的项目ID
+const PROJECT_ID = 'desktop';
+
 export class ModelService {
   // 获取可用模型列表 (from Backend Service)
   static async getAvailableModels(forceRefresh: boolean = false): Promise<AIModel[]> {
@@ -25,8 +28,16 @@ export class ModelService {
         this.clearCache();
       }
       
-      // Use Backend Service endpoint: /api/models
-      const models = await apiService.get<BackendModel[]>('/api/models');
+      // Use Backend Service endpoint: /api/projects/:projectId/models
+      // 根据 Trackv0.4.4.md，使用项目特定的模型配置端点
+      const response = await apiService.get<BackendModel[] | { models: BackendModel[] }>(`/api/projects/${PROJECT_ID}/models`);
+      
+      // 处理响应格式：可能是数组或包含 models 字段的对象
+      const models: BackendModel[] = Array.isArray(response) 
+        ? response 
+        : (typeof response === 'object' && response !== null && 'models' in response && Array.isArray(response.models))
+          ? response.models
+          : [];
       
       if (models && Array.isArray(models)) {
         // Map Backend Service format to Desktop format
