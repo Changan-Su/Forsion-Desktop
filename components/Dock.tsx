@@ -23,7 +23,7 @@ import { APPS, ICON_MAP } from '../constants';
 import { AppId, ForsionApp, DesktopApp } from '../types';
 import SettingsStorageService from '../services/settingsStorageService';
 import dockOrderService from '../services/dockOrderService';
-import forsionDeskService from '../services/forsionDeskService';
+import forsionDeskService, { getAppIconUrl } from '../services/forsionDeskService';
 
 interface DockApp {
   id: string;
@@ -48,11 +48,12 @@ const ForsionAppIcon: React.FC<{ icon?: string; name: string; size?: number }> =
   size = 24 
 }) => {
   const [iconError, setIconError] = useState(false);
+  const iconUrl = getAppIconUrl(icon);
 
-  if (icon && !iconError) {
+  if (iconUrl && !iconError) {
     return (
       <img 
-        src={icon} 
+        src={iconUrl} 
         alt={name}
         className="w-full h-full object-cover rounded-lg pointer-events-none"
         onError={() => setIconError(true)}

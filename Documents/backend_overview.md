@@ -38,6 +38,7 @@
 2. **AI 模型管理**
    - 支持多种 AI 模型（Gemini、OpenAI、DeepSeek、Claude 等）
    - 自定义模型配置
+   - **项目级模型分配**：支持为 AI Studio、Photo Studio 等不同项目独立分配可用模型池
    - API Key 安全管理
 
 3. **AI 对话接口**
@@ -380,7 +381,8 @@ Authorization: Bearer YOUR_JWT_TOKEN
 | `/api/auth/me` | GET | 获取当前用户信息 | ✅ |
 | `/api/users/settings` | GET | 获取用户设置（头像、昵称等） | ✅ |
 | `/api/users/settings` | PUT | 更新用户设置（头像、昵称等） | ✅ |
-| `/api/models` | GET | 获取可用模型列表 | ✅ |
+| `/api/models` | GET | 获取全局可用模型列表 | ✅ |
+| `/api/projects/:projectId/models` | GET | 获取指定项目分配的模型列表 | ✅ |
 | `/api/chat/completions` | POST | AI 对话接口 | ✅ |
 | `/api/credits/balance` | GET | 查询积分余额 | ✅ |
 | `/api/credits/transactions` | GET | 积分交易历史 | ✅ |
@@ -651,35 +653,27 @@ curl -X PUT http://localhost:3001/api/users/settings \
 
 #### 获取可用模型列表
 
+### 4. 模型管理接口
+
+#### 4.1 获取全局可用模型列表
 ```http
 GET /api/models
 Authorization: Bearer YOUR_JWT_TOKEN
 ```
 
-**响应示例：**
-
-```json
-[
-  {
-    "id": "gemini-2.0-flash-exp",
-    "name": "Gemini 2.0 Flash",
-    "provider": "gemini",
-    "description": "Google's latest fast model",
-    "icon": "Sparkles",
-    "isEnabled": true,
-    "apiModelId": "gemini-2.0-flash-exp",
-    "defaultBaseUrl": "https://generativelanguage.googleapis.com/v1beta"
-  },
-  {
-    "id": "gpt-4",
-    "name": "GPT-4",
-    "provider": "openai",
-    "description": "OpenAI's most capable model",
-    "icon": "Brain",
-    "isEnabled": true
-  }
-]
+#### 4.2 获取特定项目的模型列表
+```http
+GET /api/projects/:projectId/models
+Authorization: Bearer YOUR_JWT_TOKEN
 ```
+**项目 ID (`projectId`) 说明：**
+- `ai-studio`: Forsion AI Studio
+- `photo-studio`: Forsion Photo Studio
+
+#### 4.3 管理员接口（仅限 ADMIN 角色）
+- `GET /api/admin/models`: 获取包含 API Key 的完整模型列表
+- `GET /api/admin/projects/:projectId/models`: 获取项目模型配置详情
+- `PUT /api/admin/projects/:projectId/models`: 更新项目的模型分配
 
 ---
 
@@ -994,7 +988,10 @@ Authorization: Bearer YOUR_JWT_TOKEN
 ```
 
 **字段说明：**
-- `icon`: 应用图标，支持 Base64 编码（`data:image/png;base64,...`）或 URL 链接
+- `icon`: 应用图标，支持以下格式：
+  - 预设图标：`preset:icon-id`（如 `preset:app-code`）
+  - Base64 编码：`data:image/png;base64,...`
+  - URL 链接：`https://example.com/icon.png`
 - `isGlobal`: 是否为全局应用（管理员创建）
 - `createdBy`: 创建者用户 ID
 - `isActive`: 应用是否启用
@@ -1129,7 +1126,10 @@ Content-Type: application/json
 - `name` (必需): 应用名称
 - `url` (必需): 应用链接
 - `description` (可选): 应用介绍
-- `icon` (可选): 应用图标（Base64 或 URL）
+- `icon` (可选): 应用图标，支持格式：
+  - 预设图标：`preset:icon-id`（如 `preset:app-code`）
+  - Base64 编码：`data:image/png;base64,...`
+  - URL 链接：`https://example.com/icon.png`
 - `isGlobal` (可选): 是否为全局应用，默认为 `false`（仅管理员可创建全局应用）
 - `isActive` (可选): 是否启用，默认为 `true`
 - `sortOrder` (可选): 排序顺序，默认为 `0`
@@ -1258,26 +1258,56 @@ curl -X GET http://localhost:3001/api/desk/admin/apps \
 
 #### 图标处理最佳实践
 
-应用图标支持两种格式：
+应用图标支持三种格式：
 
-1. **Base64 编码图片**
+1. **预设图标**（推荐用于常用图标）
+   ```json
+   {
+     "icon": "preset:app-code"
+   }
+   ```
+   预设图标使用 `preset:图标ID` 格式，节省存储空间，加载更快。
+
+2. **Base64 编码图片**
    ```json
    {
      "icon": "data:image/png;base64,iVBORw0KGgoAAAANS..."
    }
    ```
 
-2. **URL 链接**
+3. **URL 链接**
    ```json
    {
      "icon": "https://example.com/icon.png"
    }
    ```
 
+**预设图标列表：**
+
+后端管理面板提供了以下 16 个预设图标（ID → 名称）：
+
+1. `app-code` - Code Editor（代码编辑器）
+2. `app-photo` - Photo Studio（照片工作室）
+3. `app-calendar` - Calendar（日历）
+4. `app-music` - Music Player（音乐播放器）
+5. `app-video` - Video Player（视频播放器）
+6. `app-chat` - Chat（聊天）
+7. `app-browser` - Web Browser（网页浏览器）
+8. `app-folder` - File Manager（文件管理器）
+9. `app-settings` - Settings（设置）
+10. `app-game` - Game（游戏）
+11. `app-mail` - Email（邮件）
+12. `app-note` - Notes（笔记）
+13. `app-shopping` - Shopping（购物）
+14. `app-weather` - Weather（天气）
+15. `app-book` - Book Reader（电子书阅读器）
+16. `app-social` - Social Media（社交媒体）
+
 **推荐做法：**
 - 图标大小限制：最大 16MB
 - 建议图标尺寸：64x64 到 512x512 像素
 - 支持的图片格式：PNG、JPEG、SVG、WebP
+- 对于常用图标，推荐使用预设图标（节省存储空间，加载更快）
 - 对于小图标（< 100KB），推荐使用 Base64 编码
 - 对于大图标，推荐使用 URL 链接
 
@@ -1293,7 +1323,7 @@ export interface ForsionApp {
   id: string;
   name: string;
   description?: string;
-  icon?: string;
+  icon?: string; // 支持 preset:xxx, data:image/..., 或 URL
   url: string;
   isGlobal: boolean;
   createdBy?: string;
@@ -1303,6 +1333,55 @@ export interface ForsionApp {
   createdAt?: string;
   updatedAt?: string;
 }
+
+// 预设图标库（必须与后端管理面板 admin/index.html 中的 presetIcons 保持一致）
+// 图标 SVG 数据请从后端管理面板代码中复制
+const presetIcons: Record<string, string> = {
+  'app-code': '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#2563EB" rx="15"/><path d="M30 35 L20 50 L30 65" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M50 30 L40 70" stroke="white" stroke-width="5" stroke-linecap="round"/><path d="M70 35 L80 50 L70 65" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
+  'app-photo': '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#EC4899" rx="15"/><circle cx="50" cy="45" r="18" stroke="white" stroke-width="4" fill="none"/><circle cx="50" cy="45" r="12" fill="white"/><rect x="68" y="25" width="8" height="8" rx="2" fill="white"/></svg>',
+  'app-calendar': '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#10B981" rx="15"/><rect x="20" y="30" width="60" height="50" rx="5" fill="white"/><rect x="30" y="20" width="4" height="15" fill="white" rx="2"/><rect x="66" y="20" width="4" height="15" fill="white" rx="2"/><line x1="25" y1="45" x2="75" y2="45" stroke="#10B981" stroke-width="2"/><circle cx="35" cy="55" r="3" fill="#10B981"/><circle cx="50" cy="55" r="3" fill="#10B981"/><circle cx="65" cy="55" r="3" fill="#10B981"/><circle cx="35" cy="68" r="3" fill="#10B981"/><circle cx="50" cy="68" r="3" fill="#10B981"/></svg>',
+  // ... 更多预设图标（完整 SVG 数据请从后端 admin/index.html 中的 presetIcons 数组复制）
+};
+
+// 将图标值转换为可用的图片URL
+export function getAppIconUrl(iconValue: string | undefined): string | undefined {
+  if (!iconValue) return undefined;
+  
+  // 如果是预设图标，转换为 SVG data URL
+  if (iconValue.startsWith('preset:')) {
+    const iconId = iconValue.substring(7); // 去掉 'preset:' 前缀
+    const svg = presetIcons[iconId];
+    if (svg) {
+      return `data:image/svg+xml;base64,${btoa(svg)}`;
+    }
+    // 如果预设图标不存在，返回 undefined（前端应显示默认图标）
+    return undefined;
+  }
+  
+  // 直接返回 URL 或 Base64 数据
+  return iconValue;
+}
+
+// React 组件使用示例
+/*
+import { getAppIconUrl } from './services/deskService';
+
+function AppIcon({ app }: { app: ForsionApp }) {
+  const iconUrl = getAppIconUrl(app.icon);
+  const defaultIcon = '/default-app-icon.svg';
+  
+  return (
+    <img 
+      src={iconUrl || defaultIcon} 
+      alt={app.name}
+      className="w-12 h-12 rounded-lg"
+      onError={(e) => {
+        e.currentTarget.src = defaultIcon;
+      }}
+    />
+  );
+}
+*/
 
 // 获取所有可用应用
 export async function getAllApps(): Promise<ForsionApp[]> {

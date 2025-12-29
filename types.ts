@@ -38,7 +38,7 @@ export interface ForsionApp {
   id: string;
   name: string;
   description?: string;
-  icon?: string;  // Base64 encoded image or URL
+  icon?: string;  // Supports: preset:icon-id, data:image/..., or URL
   url: string;
   isGlobal: boolean;
   isActive: boolean;

@@ -27,7 +27,7 @@ import { CSS } from '@dnd-kit/utilities';
 
 import { APPS, ICON_MAP } from '../constants';
 import { AppId, ForsionApp, DesktopApp } from '../types';
-import forsionDeskService from '../services/forsionDeskService';
+import forsionDeskService, { getAppIconUrl } from '../services/forsionDeskService';
 import launchpadOrderService from '../services/launchpadOrderService';
 import dockOrderService from '../services/dockOrderService';
 import { UninstallConfirmDialog } from './UninstallConfirmDialog';
@@ -41,11 +41,12 @@ interface ForsionAppIconProps {
 
 const ForsionAppIcon: React.FC<ForsionAppIconProps> = ({ icon, name, size = 24 }) => {
   const [iconError, setIconError] = useState(false);
+  const iconUrl = getAppIconUrl(icon);
 
-  if (icon && !iconError) {
+  if (iconUrl && !iconError) {
     return (
       <img 
-        src={icon} 
+        src={iconUrl} 
         alt={name}
         className="w-full h-full object-cover rounded-lg pointer-events-none"
         onError={() => setIconError(true)}

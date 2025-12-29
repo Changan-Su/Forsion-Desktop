@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Download, Check, Package, Loader } from 'lucide-react';
-import forsionDeskService from '../services/forsionDeskService';
+import forsionDeskService, { getAppIconUrl } from '../services/forsionDeskService';
 import { ForsionApp } from '../types';
 
 // App Card Component
@@ -15,6 +15,7 @@ interface AppCardProps {
 
 const AppCard: React.FC<AppCardProps> = ({ app, isInstalled, isInstalling, onInstall, onUninstall }) => {
   const [iconError, setIconError] = useState(false);
+  const iconUrl = getAppIconUrl(app.icon);
 
   return (
     <motion.div
@@ -24,9 +25,9 @@ const AppCard: React.FC<AppCardProps> = ({ app, isInstalled, isInstalling, onIns
     >
       {/* App Icon */}
       <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center text-white shadow-lg flex-shrink-0 overflow-hidden">
-        {app.icon && !iconError ? (
+        {iconUrl && !iconError ? (
           <img 
-            src={app.icon} 
+            src={iconUrl} 
             alt={app.name}
             className="w-full h-full object-cover"
             onError={() => setIconError(true)}
