@@ -1,5 +1,6 @@
 import apiService from './apiService';
 import type { User, LoginRequest, RegisterRequest, AuthResponse } from '../types/shared';
+import { logout as authLogout } from './authRedirect';
 
 export type { User, LoginRequest, RegisterRequest, AuthResponse };
 
@@ -28,25 +29,27 @@ export class AuthService {
   }
 
   static async getCurrentUser(): Promise<User> {
-    const response = await apiService.get<any>('/api/auth/me');
-    
-    // 处理两种可能的响应格式: { user: User } 或直接返回 User
-    const user: User = response.user || response;
-    
-    // 调试：打印响应用于排查头像字段
-    console.log('[AuthService] getCurrentUser response:', response);
-    console.log('[AuthService] Extracted user:', user);
-    console.log('[AuthService] User avatar field:', user.avatar || user.avatarUrl || 'NOT FOUND');
-    
-    // 更新本地存储的用户信息
-    localStorage.setItem(this.USER_KEY, JSON.stringify(user));
-    
-    return user;
+    try {
+      const response = await apiService.get<any>('/api/auth/me');
+      
+      // 处理两种可能的响应格式: { user: User } 或直接返回 User
+      const user: User = response.user || response;
+      
+      // 更新本地存储的用户信息
+      localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+      
+      return user;
+    } catch (error: any) {
+      console.error('[AuthService] Failed to get current user:', error);
+      throw error;
+    }
   }
 
   static logout(): void {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
+    // Use unified logout redirect
+    authLogout('desktop');
   }
 
   static getToken(): string | null {

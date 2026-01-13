@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Coins, TrendingUp, TrendingDown, Camera, Upload, Edit2, Check, X as XIcon } from 'lucide-react';
+import { X, User, Coins, TrendingUp, TrendingDown, Camera, Upload, Edit2, Check, X as XIcon, CreditCard } from 'lucide-react';
 import AuthService from '../services/authService';
 import CreditService, { CreditBalance } from '../services/creditService';
 import AvatarService from '../services/avatarService';
 import Avatar from './Avatar';
 import apiService from '../services/apiService';
+import { getToken } from '../services/authRedirect';
 
 interface UserSettingsModalProps {
   isOpen: boolean;
@@ -35,33 +36,41 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose }
 
     // 从后端获取最新的用户信息（包括头像）
     const loadUserInfo = async () => {
+      // 首先使用本地存储的用户信息，确保界面立即显示
+      const localUser = AuthService.getUser();
+      setUser(localUser);
+      
       if (AuthService.isAuthenticated()) {
         try {
+          // 尝试从后端获取最新信息（非阻塞）
           const latestUser = await AuthService.getCurrentUser();
           setUser(latestUser);
-          
-          // 加载积分信息
-          setIsLoadingCredits(true);
-          setCreditError(null);
-          try {
-            const balance = await CreditService.getBalance();
-            setCreditBalance(balance);
-          } catch (error: any) {
-            console.error('Failed to load credit balance:', error);
-            setCreditError(error.message || '加载积分失败');
-            // 不阻止模态框显示
-          } finally {
-            setIsLoadingCredits(false);
-          }
-        } catch (error) {
+        } catch (error: any) {
           console.error('Failed to fetch current user:', error);
-          // 如果失败，使用本地存储的用户信息
-          const userInfo = AuthService.getUser();
-          setUser(userInfo);
+          // 获取失败时保持使用本地用户信息，不影响界面显示
+        }
+        
+        // 加载积分信息
+        setIsLoadingCredits(true);
+        setCreditError(null);
+        try {
+          const balance = await CreditService.getBalance();
+          setCreditBalance(balance);
+        } catch (error: any) {
+          console.error('Failed to load credit balance:', error);
+          // 如果是认证错误，显示相应提示
+          if (error.status === 401 || error.status === 403) {
+            setCreditError('无法获取积分信息');
+          } else {
+            setCreditError(error.message || '加载积分失败');
+          }
+          // 不阻止模态框显示
+        } finally {
+          setIsLoadingCredits(false);
         }
       } else {
-        const userInfo = AuthService.getUser();
-        setUser(userInfo);
+        // 未登录状态
+        setCreditError('请先登录');
       }
     };
     
@@ -111,6 +120,21 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose }
   const handleCancelNicknameEdit = () => {
     setIsEditingNickname(false);
     setNicknameInput(user?.nickname || '');
+  };
+
+  // 处理充值跳转
+  const handleRecharge = () => {
+    const token = getToken();
+    const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const currentUrl = window.location.href;
+    
+    if (!token) {
+      alert('请先登录');
+      return;
+    }
+    
+    const payUrl = `${apiBaseUrl}/pay?token=${token}&redirect=${encodeURIComponent(currentUrl)}`;
+    window.location.href = payUrl;
   };
 
   // 处理头像上传
@@ -267,11 +291,17 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose }
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-surface-text opacity-70">邮箱:</span>
-                      <span className="text-surface-text font-medium">{user?.email || 'N/A'}</span>
+                      <span className="text-surface-text font-medium">{user?.email || '未设置'}</span>
                     </div>
+                    {user?.phone && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-surface-text opacity-70">手机:</span>
+                        <span className="text-surface-text font-medium">{user.phone}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm">
                       <span className="text-surface-text opacity-70">角色:</span>
-                      <span className="text-surface-text font-medium capitalize">{user?.role || 'user'}</span>
+                      <span className="text-surface-text font-medium capitalize">{user?.role?.toLowerCase() || 'user'}</span>
                     </div>
                     {user?.created_at && (
                       <div className="flex justify-between text-sm">
@@ -340,6 +370,15 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose }
                           最后更新: {new Date(creditBalance.updatedAt).toLocaleString()}
                         </div>
                       )}
+
+                      {/* 充值按钮 */}
+                      <button
+                        onClick={handleRecharge}
+                        className="w-full mt-3 py-2.5 bg-accent hover:bg-accent/80 text-white rounded-lg font-medium transition-all flex items-center justify-center space-x-2 shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                      >
+                        <CreditCard size={16} />
+                        <span>充值积分</span>
+                      </button>
                     </div>
                   ) : null}
                 </div>

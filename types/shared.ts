@@ -5,10 +5,11 @@
 
 // User types
 export interface User {
-  id: number;
+  id: number | string;
   username: string;
-  email: string;
-  role: 'admin' | 'user';
+  email?: string | null;
+  phone?: string | null;
+  role: 'admin' | 'user' | 'USER' | 'ADMIN';
   avatar?: string | null;
   avatarUrl?: string | null;
   nickname?: string | null;

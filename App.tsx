@@ -2,7 +2,6 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Dock } from './components/Dock';
 import { WindowManager } from './components/WindowManager';
 import { AIChat } from './components/AIChat';
-import { LoginModal } from './components/LoginModal';
 import { WidgetBoard } from './components/WidgetBoard';
 import UserSettingsModal from './components/UserSettingsModal';
 import Avatar from './components/Avatar';
@@ -12,17 +11,18 @@ import { motion } from 'framer-motion';
 import { LogOut } from 'lucide-react';
 import AuthService from './services/authService';
 import SettingsStorageService from './services/settingsStorageService';
+import { initAuth, validateAndRedirect, redirectToLogin, logout as authLogout } from './services/authRedirect';
 
 const App: React.FC = () => {
   const [windows, setWindows] = useState<WindowState[]>([]);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [installedApps, setInstalledApps] = useState<AppId[]>(['knowledge', 'calendar', 'workspace', 'recipe', 'studio', 'notes', 'settings']);
   const [nextZIndex, setNextZIndex] = useState(10);
   const [currentTheme, setCurrentTheme] = useState<Theme>(THEMES[0]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showUserSettings, setShowUserSettings] = useState(false);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
   // Apply theme variables to root
   useEffect(() => {
@@ -72,23 +72,40 @@ const App: React.FC = () => {
 
   // Check authentication status and sync user info from backend
   useEffect(() => {
-    const initAuth = async () => {
-      const authenticated = AuthService.isAuthenticated();
-      setIsAuthenticated(authenticated);
-      if (authenticated) {
+    const checkAuth = async () => {
+      setIsLoadingAuth(true);
+      
+      // 1. 处理从登录页返回的 token
+      initAuth();
+      
+      // 2. 验证 token 有效性
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const isValid = await validateAndRedirect(apiBaseUrl, 'desktop');
+      
+      if (isValid) {
+        setIsAuthenticated(true);
+        // 使用本地存储的用户信息
+        const localUser = AuthService.getUser();
+        setCurrentUser(localUser);
+        
         try {
-          // 从后端获取最新的用户信息（包括头像）
+          // 尝试从后端获取最新的用户信息（非阻塞）
           const latestUser = await AuthService.getCurrentUser();
           setCurrentUser(latestUser);
-        } catch (error) {
+        } catch (error: any) {
           console.error('Failed to fetch current user:', error);
-          // 如果失败，使用本地存储的用户信息
-          setCurrentUser(AuthService.getUser());
+          // 获取失败时保持使用本地用户信息，不影响登录状态
+          // 只有在 validateAndRedirect 认为 token 无效时才会跳转
         }
+      } else {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
       }
+      
+      setIsLoadingAuth(false);
     };
     
-    initAuth();
+    checkAuth();
   }, []);
 
   // Listen for user updates (e.g., avatar changes)
@@ -113,21 +130,9 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleLoginSuccess = async () => {
-    setIsAuthenticated(true);
-    try {
-      // 登录成功后，从后端获取最新的用户信息（包括头像）
-      const latestUser = await AuthService.getCurrentUser();
-      setCurrentUser(latestUser);
-    } catch (error) {
-      console.error('Failed to fetch current user after login:', error);
-      // 如果失败，使用本地存储的用户信息
-      setCurrentUser(AuthService.getUser());
-    }
-  };
-
   const handleLogout = () => {
     AuthService.logout();
+    authLogout('desktop');
     setIsAuthenticated(false);
     setCurrentUser(null);
   };
@@ -230,6 +235,15 @@ const App: React.FC = () => {
 
   const activeAppIds = Array.from(new Set(windows.map(w => w.appId)));
 
+  // Show loading screen while checking authentication
+  if (isLoadingAuth) {
+    return (
+      <div className="relative w-screen h-screen overflow-hidden transition-colors duration-500 flex items-center justify-center">
+        <div className="text-surface-text opacity-50">加载中...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative w-screen h-screen overflow-hidden transition-colors duration-500">
       <div className="absolute inset-0 z-0 bg-desktop-surface">
@@ -276,7 +290,7 @@ const App: React.FC = () => {
               if (isAuthenticated) {
                 setShowUserSettings(true);
               } else {
-                setIsLoginModalOpen(true);
+                redirectToLogin('desktop');
               }
             }}
           >
@@ -312,12 +326,6 @@ const App: React.FC = () => {
         isOpen={isAIChatOpen} 
         onClose={() => setIsAIChatOpen(prev => !prev)} 
         hasAppOpen={hasAppOpen}
-      />
-      
-      <LoginModal 
-        isOpen={isLoginModalOpen} 
-        onClose={() => setIsLoginModalOpen(false)}
-        onLoginSuccess={handleLoginSuccess}
       />
       
       <UserSettingsModal

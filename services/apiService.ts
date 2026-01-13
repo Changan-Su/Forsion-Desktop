@@ -56,8 +56,20 @@ class ApiService {
       if (contentType && contentType.includes('application/json')) {
         data = await response.json();
       } else {
-        // Non-JSON response (e.g., text/plain)
+        // Non-JSON response (e.g., text/plain, text/html)
         const text = await response.text();
+        
+        // 如果是 HTML 响应（通常是重定向到登录页），说明认证失败
+        if (contentType && contentType.includes('text/html')) {
+          // 401/403 通常意味着 token 无效或过期
+          if (response.status === 401 || response.status === 403) {
+            const error: any = new Error('Authentication failed - token may be invalid or expired');
+            error.status = response.status;
+            error.response = { detail: 'Authentication required', isHtml: true };
+            throw error;
+          }
+        }
+        
         data = { detail: text || `HTTP error! status: ${response.status}` };
       }
 
