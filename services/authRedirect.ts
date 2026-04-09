@@ -3,8 +3,7 @@
  * 用于处理统一登录页面的跳转和 Token 管理
  */
 
-const AUTH_BASE_URL = import.meta.env.VITE_AUTH_URL || 
-  (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/auth` : 'http://localhost:3001/auth');
+const AUTH_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/auth`;
 const TOKEN_KEY = 'auth_token';
 
 /**
