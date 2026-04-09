@@ -35,7 +35,6 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showUserSettings, setShowUserSettings] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [bingWallpaperUrl, setBingWallpaperUrl] = useState<string>('');
   const [vignetting, setVignetting] = useState(() => localStorage.getItem('forsion_desktop_vignetting') !== 'false');
   const [focusBlur, setFocusBlur] = useState(() => localStorage.getItem('forsion_desktop_focus_blur') !== 'false');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -51,10 +50,7 @@ const App: React.FC = () => {
 
     root.style.setProperty('--color-primary', currentTheme.primary);
     root.style.setProperty('--color-secondary', currentTheme.secondary);
-    const bgValue = currentTheme.id === 'bing-daily'
-      ? (bingWallpaperUrl ? `url(${bingWallpaperUrl})` : currentTheme.background)
-      : (currentTheme.wallpaper ? `url(${currentTheme.wallpaper})` : currentTheme.background);
-    root.style.setProperty('--bg-desktop', bgValue);
+    root.style.setProperty('--bg-desktop', currentTheme.wallpaper ? `url(${currentTheme.wallpaper})` : currentTheme.background);
 
     // Mode-aware: dark mode overrides text and surface for all components
     if (isDark) {
@@ -66,7 +62,7 @@ const App: React.FC = () => {
       root.style.setProperty('--glass-surface', currentTheme.surface);
       root.style.setProperty('--glass-surface-light', 'rgba(255,255,255,0.3)');
     }
-  }, [currentTheme, bingWallpaperUrl]);
+  }, [currentTheme]);
 
   // Re-apply theme when dark/light mode changes
   useEffect(() => {
@@ -138,39 +134,6 @@ const App: React.FC = () => {
       window.removeEventListener('search-focus-changed', handleSearchFocus as EventListener);
     };
   }, []);
-
-  // Fetch Bing daily wallpaper (only when bing-daily theme is active)
-  useEffect(() => {
-    if (currentTheme.id !== 'bing-daily') return;
-
-    // Use cached URL if still valid for today
-    try {
-      const cached = localStorage.getItem('forsion_bing_wallpaper');
-      if (cached) {
-        const { date, url } = JSON.parse(cached);
-        const today = new Date().toISOString().slice(0, 10);
-        if (date === today && url) {
-          setBingWallpaperUrl(url);
-          return;
-        }
-      }
-    } catch {}
-
-    fetch('/bing-api/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=zh-CN')
-      .then(r => r.json())
-      .then(data => {
-        const urlbase = data?.images?.[0]?.urlbase;
-        if (urlbase) {
-          const wallpaperUrl = `https://www.bing.com${urlbase}_1920x1080.jpg`;
-          setBingWallpaperUrl(wallpaperUrl);
-          localStorage.setItem('forsion_bing_wallpaper', JSON.stringify({
-            date: new Date().toISOString().slice(0, 10),
-            url: wallpaperUrl
-          }));
-        }
-      })
-      .catch(() => { /* 静默失败，使用渐变色兜底 */ });
-  }, [currentTheme.id]);
 
   // Check authentication status and sync user info from backend
   useEffect(() => {

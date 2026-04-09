@@ -30,18 +30,6 @@ server {
         proxy_connect_timeout 60s;
     }
 
-    location /bing-api/ {
-        proxy_pass https://www.bing.com/;
-        proxy_ssl_server_name on;
-        proxy_set_header Host www.bing.com;
-        proxy_set_header Referer "https://www.bing.com/";
-        proxy_set_header User-Agent "Mozilla/5.0 (compatible; Forsion/1.0)";
-        proxy_hide_header Access-Control-Allow-Origin;
-        add_header Access-Control-Allow-Origin * always;
-        proxy_connect_timeout 10s;
-        proxy_read_timeout 10s;
-    }
-
     location = /health {
         access_log off;
         default_type text/plain;

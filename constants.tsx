@@ -9,13 +9,14 @@ import { DesktopApp, Theme } from './types';
 
 export const THEMES: Theme[] = [
   {
-    id: 'bing-daily',
-    name: '必应每日壁纸',
-    background: 'linear-gradient(to bottom, #0f2027, #203a43, #2c5364)',
-    primary: '#4fc3f7',
-    secondary: '#29b6f6',
-    surface: 'rgba(255, 255, 255, 0.12)',
-    text: 'rgba(255, 255, 255, 0.92)',
+    id: 'curtain-of-light',
+    name: '光之水帘',
+    background: 'linear-gradient(to bottom, #2A4A2E, #4A6B3A, #1A3A1E)',
+    wallpaper: '/wallpapers/bing-curtain-of-light.jpg',
+    primary: '#4A6B3A',
+    secondary: '#2A4A2E',
+    surface: 'rgba(30, 50, 30, 0.5)',
+    text: '#E8F0E0',
     isDark: true
   },
   {
@@ -47,17 +48,6 @@ export const THEMES: Theme[] = [
     surface: 'rgba(255, 255, 255, 0.5)',
     text: '#2D2E4A',
     isDark: false
-  },
-  {
-    id: 'curtain-of-light',
-    name: '光之水帘',
-    background: 'linear-gradient(to bottom, #2A4A2E, #4A6B3A, #1A3A1E)',
-    wallpaper: '/wallpapers/bing-curtain-of-light.jpg',
-    primary: '#4A6B3A',
-    secondary: '#2A4A2E',
-    surface: 'rgba(30, 50, 30, 0.5)',
-    text: '#E8F0E0',
-    isDark: true
   }
 ];
 

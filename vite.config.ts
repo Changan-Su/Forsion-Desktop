@@ -8,14 +8,7 @@ export default defineConfig(({ mode }) => {
       server: {
         port: parseInt(env.VITE_PORT || '2005'), // 从环境变量读取端口，默认 2005
         host: '0.0.0.0',
-        proxy: {
-          '/bing-api': {
-            target: 'https://www.bing.com',
-            changeOrigin: true,
-            rewrite: (path: string) => path.replace(/^\/bing-api/, ''),
-            secure: false,
-          }
-        }
+
       },
       plugins: [react()],
       define: {
