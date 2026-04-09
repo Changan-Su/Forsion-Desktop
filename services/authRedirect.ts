@@ -50,28 +50,49 @@ export function redirectToLogin(appName?: string): void {
 }
 
 /**
+ * 静默验证 Token 有效性，不跳转登录页
+ * 用于应用启动时检测登录状态，不强制要求登录
+ */
+export async function validateToken(apiBaseUrl: string): Promise<boolean> {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) return false;
+
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/auth/me`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (response.ok) return true;
+    localStorage.removeItem(TOKEN_KEY);
+    return false;
+  } catch {
+    // 网络错误时允许离线使用
+    return true;
+  }
+}
+
+/**
  * 验证 Token 有效性
  * 如果无效，自动跳转登录页
  */
 export async function validateAndRedirect(apiBaseUrl: string, appName?: string): Promise<boolean> {
   const token = localStorage.getItem(TOKEN_KEY);
-  
+
   if (!token) {
     redirectToLogin(appName);
     return false;
   }
-  
+
   try {
     const response = await fetch(`${apiBaseUrl}/api/auth/me`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
     });
-    
+
     if (response.ok) {
       return true;
     }
-    
+
     // Token 无效，清除并跳转
     localStorage.removeItem(TOKEN_KEY);
     redirectToLogin(appName);

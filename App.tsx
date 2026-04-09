@@ -11,7 +11,7 @@ import { motion } from 'framer-motion';
 import { LogOut } from 'lucide-react';
 import AuthService from './services/authService';
 import SettingsStorageService from './services/settingsStorageService';
-import { initAuth, validateAndRedirect, redirectToLogin } from './services/authRedirect';
+import { initAuth, validateToken, redirectToLogin } from './services/authRedirect';
 import { ModeToggle } from './components/ModeToggle';
 import { LocaleToggle } from './components/LocaleToggle';
 import { useI18n } from './services/i18nService';
@@ -35,6 +35,7 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showUserSettings, setShowUserSettings] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [bingWallpaperUrl, setBingWallpaperUrl] = useState<string>('');
   const [vignetting, setVignetting] = useState(() => localStorage.getItem('forsion_desktop_vignetting') !== 'false');
   const [focusBlur, setFocusBlur] = useState(() => localStorage.getItem('forsion_desktop_focus_blur') !== 'false');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -50,7 +51,10 @@ const App: React.FC = () => {
 
     root.style.setProperty('--color-primary', currentTheme.primary);
     root.style.setProperty('--color-secondary', currentTheme.secondary);
-    root.style.setProperty('--bg-desktop', currentTheme.wallpaper ? `url(${currentTheme.wallpaper})` : currentTheme.background);
+    const bgValue = currentTheme.id === 'bing-daily'
+      ? (bingWallpaperUrl ? `url(${bingWallpaperUrl})` : currentTheme.background)
+      : (currentTheme.wallpaper ? `url(${currentTheme.wallpaper})` : currentTheme.background);
+    root.style.setProperty('--bg-desktop', bgValue);
 
     // Mode-aware: dark mode overrides text and surface for all components
     if (isDark) {
@@ -62,7 +66,7 @@ const App: React.FC = () => {
       root.style.setProperty('--glass-surface', currentTheme.surface);
       root.style.setProperty('--glass-surface-light', 'rgba(255,255,255,0.3)');
     }
-  }, [currentTheme]);
+  }, [currentTheme, bingWallpaperUrl]);
 
   // Re-apply theme when dark/light mode changes
   useEffect(() => {
@@ -135,41 +139,70 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // Fetch Bing daily wallpaper (only when bing-daily theme is active)
+  useEffect(() => {
+    if (currentTheme.id !== 'bing-daily') return;
+
+    // Use cached URL if still valid for today
+    try {
+      const cached = localStorage.getItem('forsion_bing_wallpaper');
+      if (cached) {
+        const { date, url } = JSON.parse(cached);
+        const today = new Date().toISOString().slice(0, 10);
+        if (date === today && url) {
+          setBingWallpaperUrl(url);
+          return;
+        }
+      }
+    } catch {}
+
+    fetch('/bing-api/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=zh-CN')
+      .then(r => r.json())
+      .then(data => {
+        const urlbase = data?.images?.[0]?.urlbase;
+        if (urlbase) {
+          const wallpaperUrl = `https://www.bing.com${urlbase}_1920x1080.jpg`;
+          setBingWallpaperUrl(wallpaperUrl);
+          localStorage.setItem('forsion_bing_wallpaper', JSON.stringify({
+            date: new Date().toISOString().slice(0, 10),
+            url: wallpaperUrl
+          }));
+        }
+      })
+      .catch(() => { /* 静默失败，使用渐变色兜底 */ });
+  }, [currentTheme.id]);
+
   // Check authentication status and sync user info from backend
   useEffect(() => {
     const checkAuth = async () => {
       setIsLoadingAuth(true);
-      
+
       // 1. 处理从登录页返回的 token
       initAuth();
-      
-      // 2. 验证 token 有效性
+
+      // 2. 静默验证 token，不强制跳转
       const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const isValid = await validateAndRedirect(apiBaseUrl, 'desktop');
-      
+      const isValid = await validateToken(apiBaseUrl);
+
       if (isValid) {
         setIsAuthenticated(true);
-        // 使用本地存储的用户信息
         const localUser = AuthService.getUser();
         setCurrentUser(localUser);
-        
+
         try {
-          // 尝试从后端获取最新的用户信息（非阻塞）
           const latestUser = await AuthService.getCurrentUser();
           setCurrentUser(latestUser);
         } catch (error: any) {
           console.error('Failed to fetch current user:', error);
-          // 获取失败时保持使用本地用户信息，不影响登录状态
-          // 只有在 validateAndRedirect 认为 token 无效时才会跳转
         }
       } else {
         setIsAuthenticated(false);
         setCurrentUser(null);
       }
-      
+
       setIsLoadingAuth(false);
     };
-    
+
     checkAuth();
   }, []);
 
@@ -188,12 +221,16 @@ const App: React.FC = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
+        if (!isAuthenticated) {
+          redirectToLogin('desktop');
+          return;
+        }
         setIsAIChatOpen(prev => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isAuthenticated]);
 
   const handleLogout = () => {
     setIsAuthenticated(false);
@@ -227,7 +264,15 @@ const App: React.FC = () => {
     return () => window.removeEventListener('resize', centerWindows);
   }, [windows.length]); // Trigger when windows are added/removed
 
+  // Apps that require authentication to open
+  const AUTH_REQUIRED_APPS: AppId[] = ['forsion-desk-market'];
+
   const launchApp = useCallback((appId: AppId) => {
+    if (AUTH_REQUIRED_APPS.includes(appId) && !isAuthenticated) {
+      redirectToLogin('desktop');
+      return;
+    }
+
     const existing = windows.find(w => w.appId === appId);
     
     // If app is already open and not minimized, close it (toggle behavior)
@@ -270,7 +315,7 @@ const App: React.FC = () => {
       newWindow
     ]);
     setNextZIndex(z => z + 1);
-  }, [windows, nextZIndex]);
+  }, [windows, nextZIndex, isAuthenticated]);
 
   const handleLaunchForsionApp = useCallback((app: ForsionApp) => {
     // Open Forsion App URL in new tab

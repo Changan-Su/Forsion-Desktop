@@ -9,6 +9,16 @@ import { DesktopApp, Theme } from './types';
 
 export const THEMES: Theme[] = [
   {
+    id: 'bing-daily',
+    name: '必应每日壁纸',
+    background: 'linear-gradient(to bottom, #0f2027, #203a43, #2c5364)',
+    primary: '#4fc3f7',
+    secondary: '#29b6f6',
+    surface: 'rgba(255, 255, 255, 0.12)',
+    text: 'rgba(255, 255, 255, 0.92)',
+    isDark: true
+  },
+  {
     id: 'monet-cliffs',
     name: 'Monet Cliffs',
     background: 'linear-gradient(to bottom, #98B0B9, #C1A3B5, #3E406F)',
