@@ -38,12 +38,6 @@ class LaunchpadOrderService {
     }
   }
 
-  /**
-   * Reset order to default
-   */
-  resetOrder(): void {
-    localStorage.removeItem(LAUNCHPAD_ORDER_KEY);
-  }
 }
 
 export const launchpadOrderService = new LaunchpadOrderService();

@@ -96,19 +96,6 @@ class DockOrderService {
     return this.getPinnedApps().includes(appId);
   }
 
-  /**
-   * Reset order to default
-   */
-  resetOrder(): void {
-    localStorage.removeItem(DOCK_ORDER_KEY);
-  }
-
-  /**
-   * Reset pinned apps
-   */
-  resetPinned(): void {
-    localStorage.removeItem(DOCK_PINNED_KEY);
-  }
 }
 
 export const dockOrderService = new DockOrderService();

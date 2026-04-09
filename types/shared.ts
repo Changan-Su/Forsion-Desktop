@@ -17,22 +17,25 @@ export interface User {
   updated_at?: string;
 }
 
-// Session types
+// Session types (backend uses UUID strings)
 export interface Session {
-  id: number;
-  user_id: number;
+  id: string;
+  user_id: string;
   title: string;
+  app_id?: string;
+  model_id?: string;
   created_at: string;
   updated_at: string;
 }
 
-// Message types
+// Message types (backend uses UUID strings)
 export interface Message {
-  id: number;
-  session_id: number;
+  id: string;
+  session_id: string;
   role: 'user' | 'assistant';
   content: string;
   model_used?: string;
+  timestamp?: number;
   created_at: string;
 }
 
@@ -105,8 +108,8 @@ export interface OpenAIChatResponse {
 
 // User Settings types
 export interface UserSettings {
-  id: number;
-  user_id: number;
+  id: number | string;
+  user_id: number | string;
   preferred_model?: string;
   theme_preferences?: any;
   gpu_acceleration?: boolean;
@@ -117,7 +120,7 @@ export interface UserSettings {
 // Chat API types
 export interface ChatRequest {
   message: string;
-  sessionId?: number;
+  sessionId?: string;
   model?: string;
   stream?: boolean;
 }
@@ -125,8 +128,8 @@ export interface ChatRequest {
 export interface ChatResponse {
   content: string;
   model: string;
-  sessionId: number;
-  messageId: number;
+  sessionId: string;
+  messageId: string;
 }
 
 // Auth API types

@@ -95,10 +95,4 @@ export function logout(appName?: string): void {
   redirectToLogin(appName);
 }
 
-/**
- * 获取当前 Token
- */
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
-}
 

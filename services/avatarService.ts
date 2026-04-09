@@ -3,7 +3,7 @@
  * 处理用户头像上传、获取和默认头像生成
  */
 
-import apiService from './apiService';
+import apiService, { API_BASE_URL, PROJECT_SOURCE } from './apiService';
 import type { User } from '../types/shared';
 
 export class AvatarService {
@@ -15,15 +15,11 @@ export class AvatarService {
       const formData = new FormData();
       formData.append('avatar', file);
 
-      // 尝试 POST /api/users/avatar 端点
-      const apiUrl = import.meta.env.VITE_API_URL !== undefined && import.meta.env.VITE_API_URL !== '' 
-        ? import.meta.env.VITE_API_URL 
-        : (import.meta.env.DEV ? 'http://localhost:3001' : '');
-      const response = await fetch(`${apiUrl}/api/users/avatar`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/avatar`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          'X-Project-Source': import.meta.env.VITE_PROJECT_SOURCE || 'desktop',
+          'X-Project-Source': PROJECT_SOURCE,
         },
         body: formData,
       });

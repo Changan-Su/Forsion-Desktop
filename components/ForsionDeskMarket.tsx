@@ -21,7 +21,7 @@ const AppCard: React.FC<AppCardProps> = ({ app, isInstalled, isInstalling, onIns
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass p-4 rounded-2xl flex items-center space-x-4 hover:bg-white/40 transition-colors group"
+      className="glass p-4 rounded-2xl flex items-center space-x-4 hover:bg-surface-text/10 transition-colors group"
     >
       {/* App Icon */}
       <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center text-white shadow-lg flex-shrink-0 overflow-hidden">
@@ -51,7 +51,7 @@ const AppCard: React.FC<AppCardProps> = ({ app, isInstalled, isInstalling, onIns
         disabled={isInstalling}
         className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all flex-shrink-0 ${
           isInstalled 
-            ? 'bg-white/10 text-surface-text opacity-50 hover:opacity-70' 
+            ? 'bg-surface-text/10 text-surface-text opacity-50 hover:opacity-70'
             : 'bg-accent text-white hover:bg-accent/90 shadow-md hover:scale-105 active:scale-95'
         } ${isInstalling ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
@@ -167,7 +167,7 @@ export const ForsionDeskMarket: React.FC<ForsionDeskMarketProps> = ({ onAppInsta
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="p-5 bg-white/20 flex items-center justify-between border-b border-white/30 rounded-t-2xl">
+      <div className="p-5 bg-surface-text/5 flex items-center justify-between border-b border-surface-text/10 rounded-t-2xl">
         <div className="flex items-center space-x-3 flex-1">
           <h3 className="text-xl font-bold text-surface-text">App Market</h3>
           <div className="relative flex-1 max-w-sm">
@@ -177,7 +177,7 @@ export const ForsionDeskMarket: React.FC<ForsionDeskMarketProps> = ({ onAppInsta
               placeholder="Search apps..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-1.5 bg-white/20 rounded-xl text-sm text-surface-text placeholder:text-surface-text/50 focus:outline-none focus:bg-white/30 transition-colors"
+              className="w-full pl-9 pr-4 py-1.5 bg-surface-text/5 rounded-xl text-sm text-surface-text placeholder:text-surface-text/50 focus:outline-none focus:bg-surface-text/10 transition-colors"
             />
           </div>
         </div>

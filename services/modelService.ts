@@ -92,17 +92,7 @@ export class ModelService {
     return SettingsStorageService.setPreferredModel(modelId);
   }
 
-  // 本地缓存模型列表
   private static cachedModels: AIModel[] | null = null;
-
-  static async getModelsWithCache(): Promise<AIModel[]> {
-    if (this.cachedModels) {
-      return this.cachedModels;
-    }
-
-    this.cachedModels = await this.getAvailableModels();
-    return this.cachedModels;
-  }
 
   static clearCache(): void {
     this.cachedModels = null;

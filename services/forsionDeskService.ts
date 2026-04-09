@@ -117,18 +117,6 @@ class ForsionDeskService {
     }
   }
 
-  /**
-   * Get app by ID
-   */
-  async getAppById(appId: string): Promise<ForsionApp> {
-    try {
-      const app = await apiService.get<ForsionApp>(`/api/desk/apps/${appId}`);
-      return app;
-    } catch (error: any) {
-      console.error('[ForsionDeskService] Failed to get app by id:', error);
-      throw error;
-    }
-  }
 }
 
 export const forsionDeskService = new ForsionDeskService();

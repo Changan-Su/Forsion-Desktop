@@ -233,7 +233,7 @@ const DraggableApp: React.FC<DraggableAppProps> = ({
             )}
           </AnimatePresence>
         </div>
-        <span className="text-sm font-medium text-white/90 drop-shadow-md text-center leading-tight select-none pointer-events-none">
+        <span className="text-sm font-medium text-surface-text drop-shadow-md text-center leading-tight select-none pointer-events-none">
           {app.name}
         </span>
       </div>
@@ -538,14 +538,14 @@ export const Launchpad: React.FC<LaunchpadProps> = ({ onLaunch, onLaunchForsionA
           {/* Search Bar */}
           <div className="p-8 pb-4 flex justify-center">
             <div className="relative w-full max-w-sm group">
-              <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 group-focus-within:text-white transition-colors" />
+              <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-surface-text/50 group-focus-within:text-surface-text transition-colors" />
               <input 
                 type="text" 
                 placeholder="Search" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 autoFocus
-                className="w-full pl-12 pr-4 py-3 bg-white/10 rounded-2xl text-white placeholder:text-white/30 focus:outline-none focus:bg-white/20 transition-all border border-white/10 focus:border-white/30"
+                className="w-full pl-12 pr-4 py-3 bg-surface-text/5 rounded-2xl text-surface-text placeholder:text-surface-text/30 focus:outline-none focus:bg-surface-text/10 transition-all border border-surface-text/10 focus:border-surface-text/30"
               />
             </div>
           </div>

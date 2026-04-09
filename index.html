@@ -27,8 +27,44 @@
       --color-primary: #3E406F;
       --color-secondary: #C1A3B5;
       --color-text: #2D2E4A;
-      --glass-surface: rgba(255, 255, 255, 0.35);
+      --glass-surface: rgba(255, 255, 255, 0.5);
+      --glass-surface-light: rgba(255, 255, 255, 0.3);
       --bg-desktop: linear-gradient(to bottom, #98B0B9, #C1A3B5, #3E406F);
+
+      /* Shared tokens */
+      --radius-xs: 8px; --radius-sm: 12px; --radius-md: 16px;
+      --radius-lg: 22px; --radius-xl: 28px; --radius-pill: 9999px;
+      --ease-apple: cubic-bezier(0.25, 0.1, 0.25, 1);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --dur-fast: 200ms; --dur-normal: 300ms;
+    }
+
+    /* Light/Dark mode tokens — independent of desk theme */
+    :root, [data-mode="light"] {
+      --ui-surface: rgba(255,255,255,0.82);
+      --ui-surface-sub: var(--glass-surface);
+      --ui-border: rgba(0,0,0,0.08);
+      --ui-border-sub: rgba(0,0,0,0.05);
+      --ui-text: #1D1D1F;
+      --ui-text-muted: #6E6E73;
+      --ui-primary: #0891B2;
+      --ui-primary-tint: rgba(8,145,178,0.07);
+      --ui-gradient-from: #0891B2;
+      --ui-gradient-to: #0D9488;
+      --backdrop-glass: blur(30px) saturate(1.25);
+    }
+    [data-mode="dark"] {
+      --ui-surface: rgba(30,30,30,0.72);
+      --ui-surface-sub: var(--glass-surface);
+      --ui-border: rgba(255,255,255,0.08);
+      --ui-border-sub: rgba(255,255,255,0.05);
+      --ui-text: rgba(255,255,255,0.94);
+      --ui-text-muted: rgba(255,255,255,0.5);
+      --ui-primary: #22D3EE;
+      --ui-primary-tint: rgba(6,182,212,0.12);
+      --ui-gradient-from: #06B6D4;
+      --ui-gradient-to: #2DD4BF;
+      --backdrop-glass: blur(30px) saturate(1.25);
     }
     body {
       font-family: 'Inter', sans-serif;
@@ -38,14 +74,18 @@
       background: var(--color-secondary);
     }
     .glass {
-      background: rgba(255, 255, 255, 0.25);
-      backdrop-filter: blur(14px);
-      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: var(--glass-surface-light);
+      -webkit-backdrop-filter: var(--backdrop-glass);
+      backdrop-filter: var(--backdrop-glass);
+      border: 1px solid var(--ui-border-sub);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
     }
     .glass-dark {
       background: var(--glass-surface);
-      backdrop-filter: blur(28px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      -webkit-backdrop-filter: var(--backdrop-glass);
+      backdrop-filter: var(--backdrop-glass);
+      border: 1px solid var(--ui-border-sub);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
     }
     .brush-stroke {
       opacity: 0.15;
@@ -61,10 +101,52 @@
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
+    /* Theme-aware thin scrollbar */
+    .scrollbar-thin::-webkit-scrollbar {
+      width: 4px;
+    }
+    .scrollbar-thin::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+      background: var(--color-primary);
+      opacity: 0.3;
+      border-radius: 4px;
+    }
+    .scrollbar-thin {
+      scrollbar-width: thin;
+      scrollbar-color: var(--color-primary) transparent;
+    }
     .bg-desktop-surface {
       background: var(--bg-desktop);
       background-size: cover;
       background-position: center;
+      transition: filter var(--dur-normal) var(--ease-apple), transform var(--dur-normal) var(--ease-apple);
+    }
+    /* Focus blur — wallpaper blurs when windows are open */
+    .bg-desktop-surface.wallpaper-focus-blur {
+      filter: blur(10px) brightness(0.95);
+      transform: scale(1.05);
+    }
+    /* Background overlay layer — sits above wallpaper, below content */
+    .bg-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity var(--dur-normal) var(--ease-apple);
+    }
+    .bg-overlay.show { opacity: 1; }
+    /* Vignetting — radial gradient darkening edges */
+    .bg-overlay.vignetting {
+      background-image:
+        radial-gradient(transparent 0%, rgba(0,0,0,0.45) 100%),
+        radial-gradient(transparent 33%, rgba(0,0,0,0.25) 166%);
+    }
+    /* Focus lite — semi-transparent overlay when focused */
+    .bg-overlay.focus-lite {
+      background-color: rgba(0,0,0,0.35);
     }
     /* GPU 加速样式 - 仅在 .gpu-acceleration 类激活时生效 */
     body.gpu-acceleration .glass,

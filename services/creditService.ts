@@ -13,21 +13,6 @@ export interface CreditBalance {
   updatedAt: string;
 }
 
-export interface CreditTransaction {
-  id: string;
-  type: 'usage' | 'initial' | 'bonus' | 'refund';
-  amount: number;
-  balanceBefore: number;
-  balanceAfter: number;
-  description?: string;
-  createdAt: string;
-}
-
-export interface CreditTransactionsResponse {
-  transactions: CreditTransaction[];
-  total: number;
-}
-
 // Backend Service 返回的原始格式
 interface BackendCreditBalance {
   userId?: string;
@@ -66,28 +51,6 @@ export class CreditService {
     }
   }
 
-  /**
-   * 获取积分交易历史
-   */
-  static async getTransactions(options?: {
-    limit?: number;
-    offset?: number;
-  }): Promise<CreditTransactionsResponse> {
-    try {
-      const params = new URLSearchParams();
-      if (options?.limit) params.append('limit', options.limit.toString());
-      if (options?.offset) params.append('offset', options.offset.toString());
-
-      const queryString = params.toString();
-      const endpoint = `/api/credits/transactions${queryString ? `?${queryString}` : ''}`;
-      
-      const response = await apiService.get<CreditTransactionsResponse>(endpoint);
-      return response;
-    } catch (error: any) {
-      console.error('[CreditService] Failed to get transactions:', error);
-      throw error;
-    }
-  }
 }
 
 export default CreditService;

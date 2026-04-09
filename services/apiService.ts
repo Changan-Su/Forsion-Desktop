@@ -1,9 +1,9 @@
 // 如果 VITE_API_URL 为空，使用相对路径（通过 nginx 代理）
 // 否则使用配置的 URL 或默认值
-const API_BASE_URL = import.meta.env.VITE_API_URL !== undefined && import.meta.env.VITE_API_URL !== '' 
-  ? import.meta.env.VITE_API_URL 
+export const API_BASE_URL = import.meta.env.VITE_API_URL !== undefined && import.meta.env.VITE_API_URL !== ''
+  ? import.meta.env.VITE_API_URL
   : (import.meta.env.DEV ? 'http://localhost:3001' : '');
-const PROJECT_SOURCE = import.meta.env.VITE_PROJECT_SOURCE || 'desktop';
+export const PROJECT_SOURCE = import.meta.env.VITE_PROJECT_SOURCE || 'desktop';
 
 export interface ApiResponse<T = any> {
   data?: T;
@@ -115,13 +115,6 @@ class ApiService {
 
   async delete<T = any>(endpoint: string): Promise<T> {
     return this.request<T>(endpoint, { method: 'DELETE' });
-  }
-
-  // EventSource for streaming responses
-  createEventSource(endpoint: string): EventSource {
-    const token = localStorage.getItem('auth_token');
-    const url = `${this.baseUrl}${endpoint}${endpoint.includes('?') ? '&' : '?'}token=${token}`;
-    return new EventSource(url);
   }
 
   // 测试后端连接

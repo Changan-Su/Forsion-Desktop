@@ -21,7 +21,7 @@ export const AppMarket: React.FC<AppMarketProps> = ({ installedApps, onInstall }
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="p-5 bg-white/20 flex items-center justify-between border-b border-white/30 rounded-t-2xl">
+      <div className="p-5 bg-surface-text/5 flex items-center justify-between border-b border-surface-text/10 rounded-t-2xl">
         <div className="flex items-center space-x-3">
           <h3 className="text-xl font-bold text-surface-text">App Market</h3>
           <div className="relative">
@@ -31,7 +31,7 @@ export const AppMarket: React.FC<AppMarketProps> = ({ installedApps, onInstall }
               placeholder="Search apps..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-1.5 bg-white/20 rounded-xl text-sm text-surface-text placeholder:text-surface-text/50 focus:outline-none focus:bg-white/30 transition-colors"
+              className="pl-9 pr-4 py-1.5 bg-surface-text/5 rounded-xl text-sm text-surface-text placeholder:text-surface-text/50 focus:outline-none focus:bg-surface-text/10 transition-colors"
             />
           </div>
         </div>
@@ -43,7 +43,7 @@ export const AppMarket: React.FC<AppMarketProps> = ({ installedApps, onInstall }
           {filteredApps.map((app) => {
             const isInstalled = installedApps.includes(app.id);
             return (
-              <div key={app.id} className="glass p-4 rounded-2xl flex items-center space-x-4 hover:bg-white/40 transition-colors group">
+              <div key={app.id} className="glass p-4 rounded-2xl flex items-center space-x-4 hover:bg-surface-text/10 transition-colors group">
                 <div className={`w-14 h-14 rounded-xl ${app.color} flex items-center justify-center text-white shadow-lg`}>
                   <div className="w-7 h-7">
                     {ICON_MAP[app.icon]}
@@ -58,7 +58,7 @@ export const AppMarket: React.FC<AppMarketProps> = ({ installedApps, onInstall }
                   disabled={isInstalled}
                   className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${
                     isInstalled 
-                      ? 'bg-white/10 text-surface-text opacity-50 cursor-default' 
+                      ? 'bg-surface-text/10 text-surface-text opacity-50 cursor-default'
                       : 'bg-accent text-white hover:bg-accent/90 shadow-md hover:scale-105 active:scale-95'
                   }`}
                 >

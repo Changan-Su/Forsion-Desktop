@@ -1,5 +1,5 @@
 
-export type AppId = 'knowledge' | 'calendar' | 'workspace' | 'recipe' | 'studio' | 'settings' | 'notes' | 'app-market' | 'launchpad' | 'forsion-desk-market' | string;
+export type AppId = 'settings' | 'launchpad' | 'forsion-desk-market' | string;
 
 export interface Theme {
   id: string;
@@ -57,6 +57,6 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
-  id?: number;
+  id?: string;
   model_used?: string;
 }

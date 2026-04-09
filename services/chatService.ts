@@ -1,33 +1,27 @@
-import apiService from './apiService';
+import apiService, { API_BASE_URL, PROJECT_SOURCE } from './apiService';
 import type { Session, Message, ChatRequest, ChatResponse, OpenAIMessage, OpenAIChatRequest, OpenAIChatChunk } from '../types/shared';
 import SessionStorageService from './sessionStorageService';
 import AuthService from './authService';
 
-// 如果 VITE_API_URL 为空，使用相对路径（通过 nginx 代理）
-const API_BASE_URL = import.meta.env.VITE_API_URL !== undefined && import.meta.env.VITE_API_URL !== '' 
-  ? import.meta.env.VITE_API_URL 
-  : (import.meta.env.DEV ? 'http://localhost:3001' : '');
-const PROJECT_SOURCE = import.meta.env.VITE_PROJECT_SOURCE || 'desktop';
-
 export type { Session, Message, ChatRequest, ChatResponse };
 
 export class ChatService {
-  private static getUserId(): number {
+  private static getUserId(): string {
     const user = AuthService.getUser();
     if (!user || !user.id) {
       throw new Error('User not authenticated');
     }
-    return user.id;
+    return String(user.id);
   }
 
-  // 获取所有会话 (from IndexedDB)
+  // 获取所有会话 (from backend API)
   static async getSessions(): Promise<Session[]> {
     const userId = this.getUserId();
     return SessionStorageService.getSessions(userId);
   }
 
-  // 获取单个会话 (from IndexedDB)
-  static async getSession(sessionId: number): Promise<Session> {
+  // 获取单个会话 (from backend API)
+  static async getSession(sessionId: string): Promise<Session> {
     const userId = this.getUserId();
     const session = await SessionStorageService.getSession(sessionId, userId);
     if (!session) {
@@ -36,14 +30,14 @@ export class ChatService {
     return session;
   }
 
-  // 创建新会话 (to IndexedDB)
+  // 创建新会话 (via backend API)
   static async createSession(title?: string): Promise<Session> {
     const userId = this.getUserId();
     return SessionStorageService.createSession(userId, title || 'New Conversation');
   }
 
-  // 更新会话标题 (in IndexedDB)
-  static async updateSession(sessionId: number, title: string): Promise<Session> {
+  // 更新会话标题 (via backend API)
+  static async updateSession(sessionId: string, title: string): Promise<Session> {
     const userId = this.getUserId();
     const session = await SessionStorageService.updateSession(sessionId, userId, title);
     if (!session) {
@@ -52,21 +46,21 @@ export class ChatService {
     return session;
   }
 
-  // 删除会话 (from IndexedDB)
-  static async deleteSession(sessionId: number): Promise<void> {
+  // 删除会话 (via backend API)
+  static async deleteSession(sessionId: string): Promise<void> {
     const userId = this.getUserId();
     await SessionStorageService.deleteSession(sessionId, userId);
   }
 
-  // 获取会话消息 (from IndexedDB)
-  static async getMessages(sessionId: number): Promise<Message[]> {
+  // 获取会话消息 (from backend API)
+  static async getMessages(sessionId: string): Promise<Message[]> {
     const userId = this.getUserId();
     return SessionStorageService.getMessages(sessionId, userId);
   }
 
-  // 保存消息 (to IndexedDB)
+  // 保存消息 (via backend API)
   static async saveMessage(
-    sessionId: number,
+    sessionId: string,
     role: 'user' | 'assistant',
     content: string,
     modelUsed?: string
@@ -75,17 +69,16 @@ export class ChatService {
     return SessionStorageService.saveMessage(sessionId, userId, role, content, modelUsed);
   }
 
-  // 删除消息 (from IndexedDB)
-  static async deleteMessage(messageId: number): Promise<void> {
+  // 删除消息
+  static async deleteMessage(messageId: string): Promise<void> {
     const userId = this.getUserId();
     await SessionStorageService.deleteMessage(messageId, userId);
   }
 
   // 发送聊天消息（非流式） - OpenAI format
   static async sendMessage(request: ChatRequest): Promise<ChatResponse> {
-    const userId = this.getUserId();
     const sessionId = request.sessionId;
-    
+
     // Get or create session
     let currentSessionId = sessionId;
     if (!currentSessionId) {
@@ -113,8 +106,8 @@ export class ChatService {
       stream: false,
     };
 
-    // Save user message to IndexedDB
-    const userMessage = await this.saveMessage(currentSessionId, 'user', request.message);
+    // Save user message
+    await this.saveMessage(currentSessionId, 'user', request.message);
 
     // Call Backend Service
     let response: {
@@ -122,7 +115,7 @@ export class ChatService {
       model: string;
       usage?: { total_tokens: number };
     };
-    
+
     try {
       response = await apiService.post<{
         choices: Array<{ message: { role: string; content: string } }>;
@@ -130,7 +123,6 @@ export class ChatService {
         usage?: { total_tokens: number };
       }>('/api/chat/completions', openAIRequest);
     } catch (error: any) {
-      // Handle credit insufficient error (402)
       if (error.status === 402) {
         throw new Error(`积分不足: ${error.message}`);
       }
@@ -139,7 +131,7 @@ export class ChatService {
 
     // Extract assistant response
     const assistantContent = response.choices[0]?.message?.content || '';
-    
+
     // Save assistant message
     const assistantMessage = await this.saveMessage(
       currentSessionId,
@@ -160,13 +152,12 @@ export class ChatService {
   static async sendMessageStream(
     request: ChatRequest,
     onChunk: (chunk: string) => void,
-    onComplete: (sessionId: number, messageId: number) => void,
+    onComplete: (sessionId: string, messageId: string) => void,
     onError: (error: string) => void
   ): Promise<void> {
     try {
-      const userId = this.getUserId();
       const sessionId = request.sessionId;
-      
+
       // Get or create session
       let currentSessionId = sessionId;
       if (!currentSessionId) {
@@ -187,7 +178,7 @@ export class ChatService {
         content: request.message,
       });
 
-      // Save user message to IndexedDB
+      // Save user message
       await this.saveMessage(currentSessionId, 'user', request.message);
 
       // Prepare OpenAI-compatible request
@@ -197,7 +188,7 @@ export class ChatService {
         stream: true,
       };
 
-      const token = localStorage.getItem('auth_token');
+      const token = AuthService.getToken();
       const response = await fetch(`${API_BASE_URL}/api/chat/completions`, {
         method: 'POST',
         headers: {
@@ -210,14 +201,13 @@ export class ChatService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        
-        // 处理积分不足错误 (402)
+
         if (response.status === 402) {
           const errorMsg = errorData.detail || 'Insufficient credits';
           onError(`积分不足: ${errorMsg}`);
           return;
         }
-        
+
         throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
       }
 
@@ -233,19 +223,19 @@ export class ChatService {
 
       while (true) {
         const { done, value } = await reader.read();
-        
+
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+        buffer = lines.pop() || '';
 
         for (const line of lines) {
           if (line.trim() === '') continue;
-          
+
           if (line.startsWith('data: ')) {
             const dataStr = line.slice(6).trim();
-            
+
             if (dataStr === '[DONE]') {
               // Save complete assistant message
               const assistantMessage = await this.saveMessage(
@@ -260,13 +250,12 @@ export class ChatService {
 
             try {
               const data: OpenAIChatChunk = JSON.parse(dataStr);
-              
+
               if (data.error) {
                 onError(data.error);
                 return;
               }
-              
-              // Extract content from OpenAI format: choices[0].delta.content
+
               const content = data.choices?.[0]?.delta?.content || '';
               if (content) {
                 fullResponse += content;
@@ -296,4 +285,3 @@ export class ChatService {
 }
 
 export default ChatService;
-

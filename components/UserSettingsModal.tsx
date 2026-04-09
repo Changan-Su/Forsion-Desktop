@@ -6,7 +6,6 @@ import CreditService, { CreditBalance } from '../services/creditService';
 import AvatarService from '../services/avatarService';
 import Avatar from './Avatar';
 import apiService from '../services/apiService';
-import { getToken } from '../services/authRedirect';
 
 interface UserSettingsModalProps {
   isOpen: boolean;
@@ -124,7 +123,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose }
 
   // 处理充值跳转
   const handleRecharge = () => {
-    const token = getToken();
+    const token = AuthService.getToken();
     const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
     const currentUrl = window.location.href;
     
@@ -182,9 +181,9 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose }
             className="w-full max-w-md mx-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="glass-dark rounded-[32px] shadow-2xl border border-white/40 overflow-hidden">
+            <div className="glass-dark rounded-[32px] shadow-2xl overflow-hidden text-surface-text">
               {/* 头部 */}
-              <div className="p-6 bg-white/10 border-b border-white/20">
+              <div className="p-6 bg-surface-text/5 border-b border-surface-text/10">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     {/* 头像显示和上传区域 */}
@@ -228,7 +227,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose }
                   </div>
                   <button
                     onClick={onClose}
-                    className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors text-surface-text"
+                    className="w-8 h-8 bg-surface-text/10 hover:bg-surface-text/15 rounded-full flex items-center justify-center transition-colors text-surface-text"
                   >
                     <X size={16} />
                   </button>
@@ -239,7 +238,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose }
               <div className="p-6">
                 <div className="space-y-4">
                   {/* 用户信息 */}
-                  <div className="bg-white/5 rounded-lg p-4 space-y-2 border border-white/10">
+                  <div className="bg-surface-text/5 rounded-lg p-4 space-y-2 border border-surface-text/10">
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-surface-text opacity-70">昵称:</span>
                       {isEditingNickname ? (
@@ -250,7 +249,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose }
                             onChange={(e) => setNicknameInput(e.target.value)}
                             placeholder="输入昵称"
                             maxLength={100}
-                            className="px-2 py-1 bg-white/10 border border-white/20 rounded-lg text-surface-text text-sm focus:outline-none focus:border-accent flex-1 max-w-[200px]"
+                            className="px-2 py-1 bg-surface-text/5 border border-surface-text/10 rounded-lg text-surface-text text-sm focus:outline-none focus:border-accent flex-1 max-w-[200px]"
                             disabled={isUpdatingNickname}
                           />
                           <button
@@ -267,7 +266,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose }
                           <button
                             onClick={handleCancelNicknameEdit}
                             disabled={isUpdatingNickname}
-                            className="w-7 h-7 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
+                            className="w-7 h-7 bg-surface-text/10 hover:bg-surface-text/15 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
                           >
                             <XIcon size={14} className="text-surface-text" />
                           </button>
@@ -277,7 +276,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose }
                           <span className="text-surface-text font-medium">{user?.nickname || '未设置'}</span>
                           <button
                             onClick={() => setIsEditingNickname(true)}
-                            className="w-6 h-6 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors"
+                            className="w-6 h-6 bg-surface-text/5 hover:bg-surface-text/10 rounded-lg flex items-center justify-center transition-colors"
                             title="编辑昵称"
                           >
                             <Edit2 size={12} className="text-surface-text opacity-70" />
@@ -315,21 +314,21 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose }
 
                   {/* 积分信息 */}
                   {isLoadingCredits ? (
-                    <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                    <div className="bg-surface-text/5 rounded-lg p-4 border border-surface-text/10">
                       <div className="flex items-center justify-center text-surface-text opacity-50">
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-accent mr-2"></div>
                         加载积分信息...
                       </div>
                     </div>
                   ) : creditError ? (
-                    <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                    <div className="bg-surface-text/5 rounded-lg p-4 border border-surface-text/10">
                       <div className="flex items-center space-x-2 text-surface-text opacity-50 text-sm">
                         <Coins size={16} className="text-surface-text opacity-30" />
                         <span>积分信息暂时无法加载</span>
                       </div>
                     </div>
                   ) : creditBalance ? (
-                    <div className="bg-white/5 rounded-lg p-4 space-y-3 border border-white/10">
+                    <div className="bg-surface-text/5 rounded-lg p-4 space-y-3 border border-surface-text/10">
                       <div className="flex items-center space-x-2 mb-3">
                         <Coins size={18} className="text-accent" />
                         <h3 className="text-sm font-bold text-surface-text">积分账户</h3>
@@ -344,7 +343,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose }
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-surface-text/10">
                         <div className="flex items-center space-x-2">
                           <TrendingUp size={14} className="text-green-400" />
                           <div>
@@ -366,7 +365,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose }
                       </div>
 
                       {creditBalance.updatedAt && (
-                        <div className="text-xs text-surface-text opacity-40 pt-2 border-t border-white/5">
+                        <div className="text-xs text-surface-text opacity-40 pt-2 border-t border-surface-text/5">
                           最后更新: {new Date(creditBalance.updatedAt).toLocaleString()}
                         </div>
                       )}

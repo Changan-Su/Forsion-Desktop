@@ -71,19 +71,6 @@ export class AuthService {
     return !!this.getToken();
   }
 
-  static isAdmin(): boolean {
-    const user = this.getUser();
-    return user?.role === 'admin';
-  }
-
-  /**
-   * 获取用户显示名称
-   * 优先使用 nickname，如果为空则使用 username
-   */
-  static getDisplayName(user: User | null): string {
-    if (!user) return '用户';
-    return user.nickname || user.username;
-  }
 }
 
 export default AuthService;

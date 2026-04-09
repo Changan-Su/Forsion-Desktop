@@ -129,10 +129,10 @@ const DraggableDockItem: React.FC<DraggableDockItemProps> = ({
       </motion.button>
       
       {isActive && (
-        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-white/80 rounded-full" />
+        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-surface-text/80 rounded-full" />
       )}
 
-      <div className="absolute -top-10 left-1/2 -translate-x-1/2 glass px-2 py-1 rounded text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+      <div className="absolute -top-10 left-1/2 -translate-x-1/2 glass px-2 py-1 rounded text-[10px] text-surface-text opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
         {app.name}
       </div>
     </div>
@@ -179,10 +179,7 @@ export const Dock: React.FC<DockProps> = ({ onLaunch, activeApps, onLaunchForsio
     const pinnedIds = dockOrderService.getPinnedApps();
     const savedOrder = dockOrderService.getOrder();
     
-    // Start with default APPS (excluding recipe, notes, studio, workspace)
-    const excludedAppIds = ['recipe', 'notes', 'studio', 'workspace'];
-    const defaultApps: DockApp[] = APPS.filter(app => !excludedAppIds.includes(app.id))
-      .map(app => ({
+    const defaultApps: DockApp[] = APPS.map(app => ({
         id: app.id,
         name: app.name,
         iconKey: app.icon,
@@ -309,7 +306,7 @@ export const Dock: React.FC<DockProps> = ({ onLaunch, activeApps, onLaunchForsio
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[10000]">
           <motion.div 
             layout
-            className="glass-dark px-3 py-2 rounded-2xl flex items-end space-x-2 shadow-2xl"
+            className="glass-dark px-3 py-2 rounded-2xl flex items-end space-x-2 shadow-2xl text-surface-text"
             data-gpu-accelerated={gpuAcceleration ? 'true' : undefined}
             style={gpuStyle}
           >

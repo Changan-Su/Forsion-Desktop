@@ -11,27 +11,80 @@ import { motion } from 'framer-motion';
 import { LogOut } from 'lucide-react';
 import AuthService from './services/authService';
 import SettingsStorageService from './services/settingsStorageService';
-import { initAuth, validateAndRedirect, redirectToLogin, logout as authLogout } from './services/authRedirect';
+import { initAuth, validateAndRedirect, redirectToLogin } from './services/authRedirect';
+import { ModeToggle } from './components/ModeToggle';
+import { LocaleToggle } from './components/LocaleToggle';
+import { useI18n } from './services/i18nService';
 
 const App: React.FC = () => {
+  const { t } = useI18n();
   const [windows, setWindows] = useState<WindowState[]>([]);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
-  const [installedApps, setInstalledApps] = useState<AppId[]>(['knowledge', 'calendar', 'workspace', 'recipe', 'studio', 'notes', 'settings']);
   const [nextZIndex, setNextZIndex] = useState(10);
-  const [currentTheme, setCurrentTheme] = useState<Theme>(THEMES[0]);
+  const [currentTheme, setCurrentTheme] = useState<Theme>(() => {
+    try {
+      const saved = localStorage.getItem('forsion_desktop_theme');
+      if (saved) {
+        const theme = JSON.parse(saved) as Theme;
+        if (theme.id && theme.background && theme.primary && theme.secondary && theme.surface && theme.text && typeof theme.isDark === 'boolean') return theme;
+      }
+    } catch {}
+    return THEMES[0];
+  });
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showUserSettings, setShowUserSettings] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [vignetting, setVignetting] = useState(() => localStorage.getItem('forsion_desktop_vignetting') !== 'false');
+  const [focusBlur, setFocusBlur] = useState(() => localStorage.getItem('forsion_desktop_focus_blur') !== 'false');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
-  // Apply theme variables to root
+  // Determine if desktop is "focused" (windows, AI chat, or search input active)
+  const isDesktopFocused = windows.length > 0 || isAIChatOpen || isSearchFocused;
+
+  // Apply theme variables to root — blends desk theme with dark/light mode
   useEffect(() => {
     const root = document.documentElement;
+    const mode = root.getAttribute('data-mode') || 'light';
+    const isDark = mode === 'dark';
+
     root.style.setProperty('--color-primary', currentTheme.primary);
     root.style.setProperty('--color-secondary', currentTheme.secondary);
-    root.style.setProperty('--color-text', currentTheme.text);
-    root.style.setProperty('--glass-surface', currentTheme.surface);
     root.style.setProperty('--bg-desktop', currentTheme.wallpaper ? `url(${currentTheme.wallpaper})` : currentTheme.background);
+
+    // Mode-aware: dark mode overrides text and surface for all components
+    if (isDark) {
+      root.style.setProperty('--color-text', 'rgba(255,255,255,0.94)');
+      root.style.setProperty('--glass-surface', 'rgba(30,30,30,0.45)');
+      root.style.setProperty('--glass-surface-light', 'rgba(30,30,30,0.25)');
+    } else {
+      root.style.setProperty('--color-text', currentTheme.text);
+      root.style.setProperty('--glass-surface', currentTheme.surface);
+      root.style.setProperty('--glass-surface-light', 'rgba(255,255,255,0.3)');
+    }
+  }, [currentTheme]);
+
+  // Re-apply theme when dark/light mode changes
+  useEffect(() => {
+    const observer = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.attributeName === 'data-mode') {
+          const root = document.documentElement;
+          const isDark = root.getAttribute('data-mode') === 'dark';
+          if (isDark) {
+            root.style.setProperty('--color-text', 'rgba(255,255,255,0.94)');
+            root.style.setProperty('--glass-surface', 'rgba(30,30,30,0.45)');
+            root.style.setProperty('--glass-surface-light', 'rgba(30,30,30,0.25)');
+          } else {
+            root.style.setProperty('--color-text', currentTheme.text);
+            root.style.setProperty('--glass-surface', currentTheme.surface);
+            root.style.setProperty('--glass-surface-light', 'rgba(255,255,255,0.3)');
+          }
+        }
+      }
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode'] });
+    return () => observer.disconnect();
   }, [currentTheme]);
 
   // Apply GPU acceleration setting to body
@@ -62,11 +115,23 @@ const App: React.FC = () => {
       }
     };
 
+    const handleOverlayChange = (e: CustomEvent) => {
+      if (e.detail.vignetting !== undefined) setVignetting(e.detail.vignetting);
+      if (e.detail.focusBlur !== undefined) setFocusBlur(e.detail.focusBlur);
+    };
+    const handleSearchFocus = (e: CustomEvent) => {
+      setIsSearchFocused(e.detail.focused);
+    };
+
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('gpu-acceleration-changed', handleGPUChange as EventListener);
+    window.addEventListener('wallpaper-overlay-changed', handleOverlayChange as EventListener);
+    window.addEventListener('search-focus-changed', handleSearchFocus as EventListener);
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('gpu-acceleration-changed', handleGPUChange as EventListener);
+      window.removeEventListener('wallpaper-overlay-changed', handleOverlayChange as EventListener);
+      window.removeEventListener('search-focus-changed', handleSearchFocus as EventListener);
     };
   }, []);
 
@@ -131,10 +196,9 @@ const App: React.FC = () => {
   }, []);
 
   const handleLogout = () => {
-    AuthService.logout();
-    authLogout('desktop');
     setIsAuthenticated(false);
     setCurrentUser(null);
+    AuthService.logout();
   };
 
   const hasAppOpen = windows.some(w => !w.isMinimized);
@@ -231,6 +295,8 @@ const App: React.FC = () => {
 
   const updateTheme = (theme: Theme) => {
     setCurrentTheme(theme);
+    localStorage.setItem('forsion_desktop_theme', JSON.stringify(theme));
+    SettingsStorageService.updateUserSettings({ theme_preferences: theme }).catch(() => {});
   };
 
   const activeAppIds = Array.from(new Set(windows.map(w => w.appId)));
@@ -239,19 +305,21 @@ const App: React.FC = () => {
   if (isLoadingAuth) {
     return (
       <div className="relative w-screen h-screen overflow-hidden transition-colors duration-500 flex items-center justify-center">
-        <div className="text-surface-text opacity-50">加载中...</div>
+        <div className="text-surface-text opacity-50">{t('loading')}</div>
       </div>
     );
   }
 
   return (
     <div className="relative w-screen h-screen overflow-hidden transition-colors duration-500">
-      <div className="absolute inset-0 z-0 bg-desktop-surface">
+      <div className={`absolute inset-0 z-0 bg-desktop-surface${focusBlur && isDesktopFocused ? ' wallpaper-focus-blur' : ''}`}>
         <div className="brush-stroke" />
         <div className="absolute top-[5%] right-[10%] w-[60%] h-[40%] bg-white opacity-[0.1] blur-[140px] rounded-full" />
         <div className="absolute top-[40%] left-[5%] w-[50%] h-[40%] bg-white opacity-[0.05] blur-[110px] rounded-full" />
         <div className="absolute bottom-[0%] right-[-5%] w-[70%] h-[50%] bg-black opacity-[0.1] blur-[120px] rounded-full" />
       </div>
+      {/* Background overlay — vignetting & focus dimming */}
+      <div className={`bg-overlay${vignetting ? ' vignetting' : ''}${vignetting || (focusBlur && isDesktopFocused) ? ' show' : ''}${focusBlur && isDesktopFocused ? ' focus-lite' : ''}`} />
 
       <main className="relative h-full pt-4 pb-24 z-10">
         <WidgetBoard />
@@ -269,54 +337,82 @@ const App: React.FC = () => {
         </div>
 
         {/* Account Settings Area in Top Right */}
-        <div className="absolute top-6 right-6 pointer-events-auto flex items-center gap-3">
-          {isAuthenticated && (
-            <motion.button
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              onClick={handleLogout}
-              className="glass-dark p-3 rounded-2xl hover:bg-white/40 transition-all"
-              title="Logout"
-            >
-              <LogOut size={18} className="text-surface-text" />
-            </motion.button>
-          )}
-          
-          <motion.div 
+        <div className="absolute top-6 right-6 pointer-events-auto flex items-center gap-2">
+          <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="glass-dark p-4 rounded-3xl flex items-center space-x-3 cursor-pointer hover:bg-white/40 transition-all group"
+            className="flex items-center gap-1.5"
+          >
+            <ModeToggle />
+            <LocaleToggle />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.05 }}
+            className="flex items-center gap-2 cursor-pointer group"
+            style={{
+              background: 'var(--ui-surface-sub)',
+              backdropFilter: 'var(--backdrop-glass)',
+              WebkitBackdropFilter: 'var(--backdrop-glass)',
+              border: '1px solid var(--ui-border-sub)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '10px 12px',
+              transition: 'all var(--dur-fast) var(--ease-apple)',
+            }}
             onClick={() => {
               if (isAuthenticated) {
-                setShowUserSettings(true);
+                const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+                const token = AuthService.getToken();
+                window.open(`${apiBaseUrl}/account?token=${token}`, '_blank', 'noopener,noreferrer');
               } else {
                 redirectToLogin('desktop');
               }
             }}
           >
-            <div className="group-hover:scale-110 transition-transform">
+            <div className="group-hover:scale-105 transition-transform" style={{ width: 36, height: 36, flexShrink: 0 }}>
               <Avatar user={currentUser} size="md" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-bold text-surface-text">
-                {isAuthenticated ? (currentUser?.nickname || currentUser?.username) : '账户设置'}
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-medium truncate text-surface-text">
+                {isAuthenticated ? (currentUser?.nickname || currentUser?.username || '?') : t('user.settings')}
               </span>
-              <span className="text-[10px] text-surface-text opacity-50 uppercase tracking-widest font-medium">
-                {isAuthenticated ? 'Logged In' : 'User Profile'}
+              <span className="text-[11px] text-surface-text opacity-70">
+                {isAuthenticated ? t('user.center') : t('user.login')}
               </span>
             </div>
+            {isAuthenticated && (
+              <button
+                onClick={(e) => { e.stopPropagation(); handleLogout(); }}
+                className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 'var(--radius-pill)',
+                  background: 'var(--ui-surface-sub)',
+                  border: '1px solid var(--ui-border-sub)',
+                  color: 'var(--color-text)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+                title={t('user.logout')}
+              >
+                <LogOut size={13} />
+              </button>
+            )}
           </motion.div>
         </div>
 
-        <WindowManager 
-          windows={windows} 
-          onClose={closeWindow} 
-          onMinimize={minimizeWindow} 
+        <WindowManager
+          windows={windows}
+          onClose={closeWindow}
+          onMinimize={minimizeWindow}
           onFocus={focusWindow}
           theme={currentTheme}
           onThemeChange={updateTheme}
-          installedApps={installedApps}
-          onInstall={(appId) => setInstalledApps(prev => [...prev, appId])}
           onLaunchApp={launchApp}
           onLaunchForsionApp={handleLaunchForsionApp}
         />
