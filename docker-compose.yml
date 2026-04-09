@@ -1,20 +1,29 @@
-
 services:
-  # 前端服务
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
       args:
         VITE_API_URL: ${VITE_API_URL:-}
-    container_name: forsion-desk
+        VITE_PROJECT_SOURCE: ${VITE_PROJECT_SOURCE:-desktop}
+    image: ${FRONTEND_IMAGE:-forsion-desktop-frontend:latest}
+    container_name: ${COMPOSE_PROJECT_NAME:-forsion-desktop}-frontend
     restart: unless-stopped
+    environment:
+      FORSION_BACKEND_URL: ${FORSION_BACKEND_URL:-http://host.docker.internal:3001}
     ports:
-      - "2005:80"
+      - "${FRONTEND_PORT:-2005}:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - forsion-network
 
 networks:
   forsion-network:
     driver: bridge
-
