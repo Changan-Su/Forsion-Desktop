@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { WindowState, AppId, Theme, ForsionApp } from '../types';
 import SettingsStorageService from '../services/settingsStorageService';
+import { APPS } from '../constants';
+import { useI18n } from '../services/i18nService';
 import { Launchpad } from './Launchpad';
 import { ForsionDeskMarket } from './ForsionDeskMarket';
 import { SettingsPanel } from './Settings/SettingsPanel';
@@ -29,6 +31,7 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
   onLaunchApp,
   onLaunchForsionApp
 }) => {
+  const { t } = useI18n();
   const [gpuAcceleration, setGpuAcceleration] = useState<boolean>(true);
 
   useEffect(() => {
@@ -81,7 +84,7 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
               {/* Title Bar */}
               {win.appId !== 'forsion-desk-market' && (
                 <div className="h-12 flex items-center justify-between px-6 pt-4 select-none">
-                  <span className="text-surface-text text-xl font-bold tracking-tight opacity-90">{win.title}</span>
+                  <span className="text-surface-text text-xl font-bold tracking-tight opacity-90">{(() => { const appDef = APPS.find(a => a.id === win.appId); return appDef?.nameKey ? t(appDef.nameKey) : win.title; })()}</span>
                   <button
                     onClick={() => onClose(win.id)}
                     className="w-8 h-8 rounded-full bg-surface-text/5 hover:bg-surface-text/10 flex items-center justify-center transition-colors group"

@@ -30,6 +30,7 @@ export interface WindowState {
 export interface DesktopApp {
   id: AppId;
   name: string;
+  nameKey?: string;
   icon: string;
   color: string;
 }
@@ -47,6 +48,23 @@ export interface ForsionApp {
   createdAt?: string;
   updatedAt?: string;
 }
+
+export interface LaunchpadBookmark {
+  id: string;
+  type: 'bookmark';
+  name: string;
+  url: string;
+  icon?: string;
+}
+
+export interface LaunchpadFolder {
+  id: string;
+  type: 'folder';
+  name: string;
+  children: string[];
+}
+
+export type LaunchpadItem = DesktopApp | ForsionApp | LaunchpadBookmark | LaunchpadFolder;
 
 import type { User, Session, AIModel } from './types/shared';
 

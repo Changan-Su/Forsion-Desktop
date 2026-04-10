@@ -52,6 +52,11 @@
       --ui-gradient-from: #0891B2;
       --ui-gradient-to: #0D9488;
       --backdrop-glass: blur(30px) saturate(1.25);
+      /* Icon surface — glass base lightly tinted with the desk theme primary.
+         When auto-adapt is on, --color-primary is the extracted vibrant color so
+         every icon follows the wallpaper together. When off, --color-primary is a
+         neutral grayscale and the mix resolves to near-neutral glass. */
+      --icon-surface: color-mix(in srgb, var(--color-primary) 18%, var(--ui-surface));
     }
     [data-mode="dark"] {
       --ui-surface: rgba(30,30,30,0.72);
@@ -65,6 +70,7 @@
       --ui-gradient-from: #06B6D4;
       --ui-gradient-to: #2DD4BF;
       --backdrop-glass: blur(30px) saturate(1.25);
+      --icon-surface: color-mix(in srgb, var(--color-primary) 18%, var(--ui-surface));
     }
     body {
       font-family: 'Inter', sans-serif;

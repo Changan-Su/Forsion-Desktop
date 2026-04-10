@@ -3,7 +3,8 @@ import React from 'react';
 import {
   Settings,
   LayoutGrid,
-  Store
+  Store,
+  LayoutDashboard,
 } from 'lucide-react';
 import { DesktopApp, Theme } from './types';
 
@@ -52,9 +53,10 @@ export const THEMES: Theme[] = [
 ];
 
 export const APPS: DesktopApp[] = [
-  { id: 'forsion-desk-market', name: 'App Market', icon: 'Store', color: 'bg-gradient-to-br from-purple-500/80 to-pink-500/80' },
-  { id: 'launchpad', name: 'Launchpad', icon: 'LayoutGrid', color: 'bg-white/20' },
-  { id: 'settings', name: 'Settings', icon: 'Settings', color: 'bg-accent' },
+  { id: 'forsion-desk-market', name: 'Market', nameKey: 'app.name.forsion-desk-market', icon: 'Store', color: '' },
+  { id: 'launchpad', name: 'Drawer', nameKey: 'app.name.launchpad', icon: 'LayoutGrid', color: '' },
+  { id: 'widgets', name: 'Widgets', nameKey: 'app.name.widgets', icon: 'LayoutDashboard', color: '' },
+  { id: 'settings', name: 'Settings', nameKey: 'app.name.settings', icon: 'Settings', color: '' },
 ];
 
 export interface SearchEngine {
@@ -71,12 +73,14 @@ export const SEARCH_ENGINES: SearchEngine[] = [
   { id: 'google',     name: '谷歌',       searchUrl: 'https://www.google.com/search?q={query}',     suggestEngine: 'google', shortcutKey: '3' },
   { id: 'yandex',     name: 'Yandex',    searchUrl: 'https://yandex.com/search/?text={query}',     suggestEngine: undefined, shortcutKey: '4' },
   { id: 'duckduckgo', name: 'DuckDuckGo', searchUrl: 'https://duckduckgo.com/?q={query}',          suggestEngine: undefined, shortcutKey: '5' },
+  { id: 'ai',         name: '汤谷智能体', searchUrl: '',                                           suggestEngine: undefined, shortcutKey: '6' },
 ];
 
 export const DEFAULT_SEARCH_ENGINE = 'bing';
 
 export const ICON_MAP: Record<string, React.ReactNode> = {
-  Store: <Store className="w-full h-full text-white" />,
-  LayoutGrid: <LayoutGrid className="w-full h-full text-white" />,
-  Settings: <Settings className="w-full h-full text-white" />,
+  LayoutDashboard: <LayoutDashboard className="w-full h-full" />,
+  Store: <Store className="w-full h-full" />,
+  LayoutGrid: <LayoutGrid className="w-full h-full" />,
+  Settings: <Settings className="w-full h-full" />,
 };

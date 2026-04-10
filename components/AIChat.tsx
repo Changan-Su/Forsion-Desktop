@@ -28,6 +28,8 @@ const EngineIcon: React.FC<{ engineId: string; size?: number }> = ({ engineId, s
       return <svg width={s} height={s} viewBox="0 0 24 24"><path fill={f} d="M1.902 16.349v-2.85L0 8.398h.957l1.4 3.938L3.97 7.573h.877l-2.069 5.96v2.815h-.876zm5.638 0h-.734c-.033-.125-.065-.3-.075-.447h-.057c-.246.313-.559.525-1.051.525-.798 0-1.344-.601-1.344-1.704 0-1.2.611-1.956 2.18-1.956h.123v-.333c0-.735-.246-1.048-.735-1.048-.445 0-.824.234-1.112.49l-.167-.766c.256-.213.766-.447 1.336-.447.99 0 1.533.424 1.533 1.781v2.636c0 .534.055 1.002.1 1.267l.003.002zm-.955-2.925h-.101c-1.08 0-1.313.479-1.313 1.2 0 .645.21 1.067.655 1.067.3 0 .601-.2.757-.445l.002-1.822zm2.802 2.925h-.869v-5.621h.869v.491h.056c.154-.21.578-.556 1.101-.556.732 0 1.121.412 1.121 1.268v4.418h-.878v-4.34c0-.423-.188-.57-.524-.57-.364 0-.675.279-.877.559v4.35l.001.001zm3.135-2.592c0-2.08.78-3.094 1.901-3.094.268 0 .545.09.713.211V8.398h.869v7.95h-.645l-.069-.445h-.055c-.245.312-.556.521-1.013.521-1.1 0-1.699-.933-1.699-2.667h-.002zm2.615-2.115c-.176-.176-.366-.266-.656-.266-.7 0-1.035 1.057-1.035 2.202 0 1.313.246 2.114.881 2.114.436 0 .666-.213.811-.435v-3.615zm3.604 4.785c-1.155 0-1.869-.924-1.869-2.647 0-1.804.501-3.116 1.69-3.116.935 0 1.544.701 1.544 2.604v.478h-2.331c0 1.268.355 1.935 1.045 1.935.489 0 .847-.222 1.068-.378l.2.667c-.354.278-.79.456-1.345.456l-.002.001zm-.957-3.394h1.435c0-.957-.155-1.657-.656-1.657-.532 0-.72.657-.78 1.657h.001zm6.095-2.292l-1.045 2.625L24 16.349h-.899l-.87-2.314-.844 2.313h-.855l1.166-2.904-1.057-2.702h.901l.727 2.035.765-2.036h.846z"/></svg>;
     case 'duckduckgo':
       return <svg width={s} height={s} viewBox="0 0 24 24"><path fill={f} d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 23C5.925 23 1 18.074 1 12S5.926 1 12 1s11 4.925 11 11-4.925 11-11 11zm10.219-11c0 4.805-3.317 8.833-7.786 9.925-.27-.521-.53-1.017-.749-1.438.645.249 1.93.718 2.208.615.376-.144.282-3.149-.14-3.245-.338-.075-1.632.837-2.141 1.209l.034.156c.078.397.144.993.03 1.247-.001.004-.002.01-.004.013a.218.218 0 0 1-.068.088c-.284.188-1.081.284-1.503.188a.516.516 0 0 1-.064-.02c-.694.396-2.01 1.109-2.25.971-.329-.188-.377-2.676-.329-3.288.035-.46 1.653.286 2.442.679.174-.163.602-.272.98-.31-.57-1.389-.99-2.977-.733-4.105 0 .002.002.002.002.002.356.248 2.73 1.05 3.91 1.027 1.18-.024 3.114-.743 2.903-1.323-.212-.58-2.135.51-4.142.324-1.486-.138-1.748-.804-1.42-1.29.414-.611 1.168.116 2.411-.256 1.245-.371 2.987-1.035 3.632-1.397 1.494-.833-.625-1.177-1.125-.947-.474.22-2.123.637-2.889.82.428-1.516-.603-4.149-1.757-5.3-.376-.376-.951-.612-1.603-.736-.25-.344-.654-.671-1.225-.977a5.772 5.772 0 0 0-3.595-.584l-.024.004-.034.004.004.002c-.148.028-.237.08-.357.098.148.016.705.276 1.057.418-.174.068-.412.108-.596.184a.828.828 0 0 0-.204.056c-.173.08-.303.375-.3.515.84-.086 2.082-.026 2.991.246-.644.09-1.235.258-1.661.482-.016.008-.03.018-.048.028-.054.02-.106.042-.152.066-1.367.72-1.971 2.405-1.611 4.424.323 1.824 1.665 8.088 2.29 11.064-3.973-1.4-6.822-5.186-6.822-9.639C1.781 6.356 6.356 1.781 12 1.781S22.219 6.356 22.219 12zM9.095 9.581a.758.758 0 1 0 0 1.516.758.758 0 0 0 0-1.516zm.338.702a.196.196 0 1 1 0-.392.196.196 0 0 1 0 .392zm4.724-1.043a.65.65 0 1 0 0 1.299.65.65 0 0 0 0-1.3zm.29.601a.168.168 0 1 1 0-.336.168.168 0 0 1 0 .336zM9.313 8.146s-.571-.26-1.125.09c-.554.348-.534.704-.534.704s-.294-.656.49-.978c.786-.32 1.17.184 1.17.184zm5.236-.052s-.41-.234-.73-.23c-.654.008-.831.296-.831.296s.11-.688.945-.55a.84.84 0 0 1 .616.484z"/></svg>;
+    case 'ai':
+      return <Sparkles size={s} />;
     default:
       return <Sparkles size={s} />;
   }
@@ -98,12 +100,12 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, hasAppOpen = fa
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchHistory, setSearchHistory] = useState<string[]>(getSearchHistory);
   const [showHistory, setShowHistory] = useState(false);
-  const [inputFocused, setInputFocused] = useState(false);
   const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const engineDropdownRef = useRef<HTMLDivElement>(null);
   const suggestDropdownRef = useRef<HTMLDivElement>(null);
   const historyDropdownRef = useRef<HTMLDivElement>(null);
   const inputBarRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{ bottom: number; left: number; width: number } | null>(null);
 
   const isAIMode = searchMode === 'ai';
@@ -162,7 +164,20 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, hasAppOpen = fa
     return () => window.removeEventListener('search-engine-changed', handler as EventListener);
   }, []);
 
-  // Notify App when search input is actively used (non-AI, non-open, has text or dropdowns visible)
+  // Listen for shortcut-triggered focus
+  useEffect(() => {
+    const handler = () => {
+      searchInputRef.current?.focus();
+    };
+    window.addEventListener('shortcut-focus-search', handler);
+    return () => window.removeEventListener('shortcut-focus-search', handler);
+  }, []);
+
+  // Notify App when the search input enters/leaves the focused state so the
+  // wallpaper can apply the focus-blur overlay. Intentionally NOT auto-focused
+  // on mount — page load should stay unblurred until the user actively
+  // interacts with the search box.
+  const [inputFocused, setInputFocused] = useState(false);
   const isSearchActive = !isAIMode && !isOpen && inputFocused;
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('search-focus-changed', { detail: { focused: isSearchActive } }));
@@ -426,7 +441,7 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, hasAppOpen = fa
         if (idx >= 0 && idx < engines.length) {
           e.preventDefault();
           switchEngine(engines[idx].id);
-        } else if (e.key === '6' || e.key.toLowerCase() === 'a') {
+        } else if (e.key.toLowerCase() === 'a') {
           e.preventDefault();
           switchEngine('ai');
         }
@@ -687,7 +702,7 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, hasAppOpen = fa
             )}
 
             <input
-              autoFocus
+              ref={searchInputRef}
               type="text"
               value={input}
               onFocus={() => {
@@ -791,41 +806,25 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, hasAppOpen = fa
             }}
           >
             {SEARCH_ENGINES.map((engine, idx) => (
-              <motion.button
-                key={engine.id}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.03 }}
-                onClick={() => switchEngine(engine.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
-                  searchMode === engine.id
-                    ? 'bg-accent text-white'
-                    : 'hover:bg-surface-text/10 text-surface-text'
-                }`}
-              >
-                <EngineIcon engineId={engine.id} size={16} />
-                <span className="text-sm font-medium flex-1 text-left">{engine.name}</span>
-                <span className="text-xs opacity-50 font-mono">Alt+{engine.shortcutKey}</span>
-              </motion.button>
+              <React.Fragment key={engine.id}>
+                {engine.id === 'ai' && <div className="my-1 border-t border-surface-text/10" />}
+                <motion.button
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.03 }}
+                  onClick={() => switchEngine(engine.id)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                    searchMode === engine.id
+                      ? 'bg-accent text-white'
+                      : 'hover:bg-surface-text/10 text-surface-text'
+                  }`}
+                >
+                  <EngineIcon engineId={engine.id} size={16} />
+                  <span className="text-sm font-medium flex-1 text-left">{engine.name}</span>
+                  <span className="text-xs opacity-50 font-mono">Alt+{engine.shortcutKey}</span>
+                </motion.button>
+              </React.Fragment>
             ))}
-
-            <div className="my-1 border-t border-surface-text/10" />
-
-            <motion.button
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: SEARCH_ENGINES.length * 0.03 }}
-              onClick={() => switchEngine('ai')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
-                isAIMode
-                  ? 'bg-accent text-white'
-                  : 'hover:bg-surface-text/10 text-surface-text'
-              }`}
-            >
-              <Sparkles size={16} />
-              <span className="text-sm font-medium flex-1 text-left">{t('search.aiAssistant')}</span>
-              <span className="text-xs opacity-50 font-mono">Alt+6</span>
-            </motion.button>
 
             <div className="my-1 border-t border-surface-text/10" />
 

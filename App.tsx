@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Dock } from './components/Dock';
 import { WindowManager } from './components/WindowManager';
 import { AIChat } from './components/AIChat';
-import { WidgetBoard } from './components/WidgetBoard';
+import { CardZoneManager } from './components/CardZoneManager';
 import UserSettingsModal from './components/UserSettingsModal';
 import Avatar from './components/Avatar';
 import { WindowState, AppId, Theme, ForsionApp } from './types';
@@ -14,7 +14,16 @@ import SettingsStorageService from './services/settingsStorageService';
 import { initAuth, validateToken, redirectToLogin } from './services/authRedirect';
 import { ModeToggle } from './components/ModeToggle';
 import { LocaleToggle } from './components/LocaleToggle';
+import { FullscreenToggle } from './components/FullscreenToggle';
 import { useI18n } from './services/i18nService';
+import { getShortcutBindings, ShortcutBindings, ShortcutAction } from './components/Settings/ShortcutSettings';
+import { getAutoAdapt, getBingDaily } from './components/Settings/AppearanceSettings';
+import { fetchBingWallpapers } from './services/wallpaperService';
+import { generateThemeFromWallpaper } from './services/colorExtractionService';
+import { initDeskPlugins } from './plugins/initPlugins';
+
+// Initialize desk plugins (idempotent — safe on HMR)
+initDeskPlugins();
 
 const App: React.FC = () => {
   const { t } = useI18n();
@@ -36,10 +45,15 @@ const App: React.FC = () => {
   const [showUserSettings, setShowUserSettings] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [vignetting, setVignetting] = useState(() => localStorage.getItem('forsion_desktop_vignetting') !== 'false');
-  const [focusBlur, setFocusBlur] = useState(() => localStorage.getItem('forsion_desktop_focus_blur') !== 'false');
+  const [focusBlur, setFocusBlur] = useState(() => localStorage.getItem('forsion_desktop_focus_blur') === 'true');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [shortcutBindings, setShortcutBindings] = useState<ShortcutBindings>(getShortcutBindings);
+  const [isWidgetEditing, setIsWidgetEditing] = useState(false);
 
-  // Determine if desktop is "focused" (windows, AI chat, or search input active)
+  // Focus blur fires when a window / AI chat is open, or the user has
+  // actively focused the search input. The search input is NOT auto-focused
+  // on mount, so page load/refresh remains unblurred; blur only kicks in
+  // once the user clicks or tabs into the search box.
   const isDesktopFocused = windows.length > 0 || isAIChatOpen || isSearchFocused;
 
   // Apply theme variables to root — blends desk theme with dark/light mode
@@ -87,6 +101,78 @@ const App: React.FC = () => {
     return () => observer.disconnect();
   }, [currentTheme]);
 
+  // Auto-apply Bing daily wallpaper on startup if enabled
+  useEffect(() => {
+    if (!getBingDaily()) return;
+
+    const BING_DAILY_DATE_KEY = 'forsion_bing_daily_date';
+    const today = new Date().toISOString().slice(0, 10);
+    // Only fetch once per day
+    if (localStorage.getItem(BING_DAILY_DATE_KEY) === today) return;
+
+    (async () => {
+      try {
+        const wallpapers = await fetchBingWallpapers();
+        if (wallpapers.length === 0) return;
+        const wallpaperUrl = wallpapers[0].url;
+        localStorage.setItem(BING_DAILY_DATE_KEY, today);
+
+        if (getAutoAdapt()) {
+          const theme = await generateThemeFromWallpaper(wallpaperUrl);
+          setCurrentTheme(theme);
+          localStorage.setItem('forsion_desktop_theme', JSON.stringify(theme));
+          SettingsStorageService.updateUserSettings({ theme_preferences: theme }).catch(() => {});
+        } else {
+          // Neutral colors with wallpaper
+          const isDark = currentTheme.isDark;
+          const neutral = isDark
+            ? { primary: 'rgba(255,255,255,0.85)', secondary: 'rgba(255,255,255,0.5)', surface: 'rgba(30,30,30,0.45)', text: 'rgba(255,255,255,0.94)' }
+            : { primary: 'rgba(30,30,30,0.85)', secondary: 'rgba(60,60,60,0.5)', surface: 'rgba(255,255,255,0.45)', text: 'rgba(30,30,30,0.94)' };
+          const theme: Theme = { ...currentTheme, ...neutral, id: 'bing-daily', name: 'Bing Daily', wallpaper: wallpaperUrl };
+          setCurrentTheme(theme);
+          localStorage.setItem('forsion_desktop_theme', JSON.stringify(theme));
+          SettingsStorageService.updateUserSettings({ theme_preferences: theme }).catch(() => {});
+        }
+      } catch (err) {
+        console.error('[App] Bing daily wallpaper fetch failed:', err);
+      }
+    })();
+  }, []); // Run once on mount
+
+  // Listen for bing-daily toggle to apply immediately when turned on
+  useEffect(() => {
+    const handler = async (e: CustomEvent) => {
+      if (!e.detail.enabled) return;
+      try {
+        const wallpapers = await fetchBingWallpapers();
+        if (wallpapers.length === 0) return;
+        const wallpaperUrl = wallpapers[0].url;
+        const today = new Date().toISOString().slice(0, 10);
+        localStorage.setItem('forsion_bing_daily_date', today);
+
+        if (getAutoAdapt()) {
+          const theme = await generateThemeFromWallpaper(wallpaperUrl);
+          setCurrentTheme(theme);
+          localStorage.setItem('forsion_desktop_theme', JSON.stringify(theme));
+          SettingsStorageService.updateUserSettings({ theme_preferences: theme }).catch(() => {});
+        } else {
+          const isDark = currentTheme.isDark;
+          const neutral = isDark
+            ? { primary: 'rgba(255,255,255,0.85)', secondary: 'rgba(255,255,255,0.5)', surface: 'rgba(30,30,30,0.45)', text: 'rgba(255,255,255,0.94)' }
+            : { primary: 'rgba(30,30,30,0.85)', secondary: 'rgba(60,60,60,0.5)', surface: 'rgba(255,255,255,0.45)', text: 'rgba(30,30,30,0.94)' };
+          const theme: Theme = { ...currentTheme, ...neutral, id: 'bing-daily', name: 'Bing Daily', wallpaper: wallpaperUrl };
+          setCurrentTheme(theme);
+          localStorage.setItem('forsion_desktop_theme', JSON.stringify(theme));
+          SettingsStorageService.updateUserSettings({ theme_preferences: theme }).catch(() => {});
+        }
+      } catch (err) {
+        console.error('[App] Bing daily wallpaper fetch failed:', err);
+      }
+    };
+    window.addEventListener('bing-daily-changed', handler as EventListener);
+    return () => window.removeEventListener('bing-daily-changed', handler as EventListener);
+  }, [currentTheme]);
+
   // Apply GPU acceleration setting to body
   useEffect(() => {
     const gpuEnabled = SettingsStorageService.getGPUAcceleration();
@@ -127,11 +213,16 @@ const App: React.FC = () => {
     window.addEventListener('gpu-acceleration-changed', handleGPUChange as EventListener);
     window.addEventListener('wallpaper-overlay-changed', handleOverlayChange as EventListener);
     window.addEventListener('search-focus-changed', handleSearchFocus as EventListener);
+    const handleShortcutChange = (e: CustomEvent) => {
+      setShortcutBindings(e.detail as ShortcutBindings);
+    };
+    window.addEventListener('shortcut-bindings-changed', handleShortcutChange as EventListener);
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('gpu-acceleration-changed', handleGPUChange as EventListener);
       window.removeEventListener('wallpaper-overlay-changed', handleOverlayChange as EventListener);
       window.removeEventListener('search-focus-changed', handleSearchFocus as EventListener);
+      window.removeEventListener('shortcut-bindings-changed', handleShortcutChange as EventListener);
     };
   }, []);
 
@@ -178,6 +269,21 @@ const App: React.FC = () => {
 
     window.addEventListener('user-updated', handleUserUpdate);
     return () => window.removeEventListener('user-updated', handleUserUpdate);
+  }, []);
+
+  // Track widget edit mode for dock active indicator
+  useEffect(() => {
+    const onToggle = () => setIsWidgetEditing(prev => !prev);
+    const onSaved = () => setIsWidgetEditing(false);
+    const onCancelled = () => setIsWidgetEditing(false);
+    window.addEventListener('widget-edit-toggle', onToggle);
+    window.addEventListener('widget-edit-saved', onSaved);
+    window.addEventListener('widget-edit-cancelled', onCancelled);
+    return () => {
+      window.removeEventListener('widget-edit-toggle', onToggle);
+      window.removeEventListener('widget-edit-saved', onSaved);
+      window.removeEventListener('widget-edit-cancelled', onCancelled);
+    };
   }, []);
 
   useEffect(() => {
@@ -231,6 +337,12 @@ const App: React.FC = () => {
   const AUTH_REQUIRED_APPS: AppId[] = ['forsion-desk-market'];
 
   const launchApp = useCallback((appId: AppId) => {
+    // Widgets app toggles edit mode instead of opening a window
+    if (appId === 'widgets') {
+      window.dispatchEvent(new CustomEvent('widget-edit-toggle'));
+      return;
+    }
+
     if (AUTH_REQUIRED_APPS.includes(appId) && !isAuthenticated) {
       redirectToLogin('desktop');
       return;
@@ -260,7 +372,7 @@ const App: React.FC = () => {
     const newWindow: WindowState = {
       id: Math.random().toString(36).substring(7),
       appId,
-      title: appInfo?.name || 'Application',
+      title: appInfo?.nameKey ? t(appInfo.nameKey) : (appInfo?.name || 'Application'),
       isOpen: true,
       isMinimized: false,
       isMaximized: false,
@@ -285,6 +397,30 @@ const App: React.FC = () => {
     window.open(app.url, '_blank', 'noopener,noreferrer');
   }, []);
 
+  // Execute a shortcut action
+  const executeShortcutAction = useCallback((action: ShortcutAction) => {
+    if (action === 'none') return;
+    if (action === 'open-launchpad') {
+      launchApp('launchpad');
+    } else if (action === 'focus-search') {
+      // Dispatch event to focus the search input
+      window.dispatchEvent(new CustomEvent('shortcut-focus-search'));
+    }
+  }, [launchApp]);
+
+  // Right-click on empty desktop area
+  const handleDesktopContextMenu = useCallback((e: React.MouseEvent) => {
+    const action = shortcutBindings['right-click-empty'];
+    if (action === 'none') return;
+    e.preventDefault();
+    executeShortcutAction(action);
+  }, [shortcutBindings, executeShortcutAction]);
+
+  // Click on title area
+  const handleTitleClick = useCallback(() => {
+    executeShortcutAction(shortcutBindings['click-title']);
+  }, [shortcutBindings, executeShortcutAction]);
+
   const closeWindow = (id: string) => {
     setWindows(prev => prev.filter(w => w.id !== id));
   };
@@ -307,7 +443,10 @@ const App: React.FC = () => {
     SettingsStorageService.updateUserSettings({ theme_preferences: theme }).catch(() => {});
   };
 
-  const activeAppIds = Array.from(new Set(windows.map(w => w.appId)));
+  const activeAppIds = Array.from(new Set([
+    ...windows.map(w => w.appId),
+    ...(isWidgetEditing ? ['widgets'] : []),
+  ]));
 
   // Show loading screen while checking authentication
   if (isLoadingAuth) {
@@ -319,7 +458,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden transition-colors duration-500">
+    <div className="relative w-screen h-screen overflow-hidden transition-colors duration-500" onContextMenu={handleDesktopContextMenu}>
       <div className={`absolute inset-0 z-0 bg-desktop-surface${focusBlur && isDesktopFocused ? ' wallpaper-focus-blur' : ''}`}>
         <div className="brush-stroke" />
         <div className="absolute top-[5%] right-[10%] w-[60%] h-[40%] bg-white opacity-[0.1] blur-[140px] rounded-full" />
@@ -330,19 +469,7 @@ const App: React.FC = () => {
       <div className={`bg-overlay${vignetting ? ' vignetting' : ''}${vignetting || (focusBlur && isDesktopFocused) ? ' show' : ''}${focusBlur && isDesktopFocused ? ' focus-lite' : ''}`} />
 
       <main className="relative h-full pt-4 pb-24 z-10">
-        <WidgetBoard />
-        
-        {/* Desktop Content: Slogan and Account Settings */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <motion.h1 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.5, duration: 1 }}
-            className="text-7xl font-cursive text-surface-text opacity-40 select-none tracking-tight"
-          >
-            Forsion is All You Need
-          </motion.h1>
-        </div>
+        <CardZoneManager />
 
         {/* Account Settings Area in Top Right */}
         <div className="absolute top-6 right-6 pointer-events-auto flex items-center gap-2">
@@ -351,6 +478,7 @@ const App: React.FC = () => {
             animate={{ opacity: 1, x: 0 }}
             className="flex items-center gap-1.5"
           >
+            <FullscreenToggle />
             <ModeToggle />
             <LocaleToggle />
           </motion.div>

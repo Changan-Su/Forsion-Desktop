@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Search, Download, Check, Package, Loader } from 'lucide-react';
 import forsionDeskService, { getAppIconUrl } from '../services/forsionDeskService';
 import { ForsionApp } from '../types';
+import { useI18n } from '../services/i18nService';
 
 // App Card Component
 interface AppCardProps {
@@ -14,6 +15,7 @@ interface AppCardProps {
 }
 
 const AppCard: React.FC<AppCardProps> = ({ app, isInstalled, isInstalling, onInstall, onUninstall }) => {
+  const { t } = useI18n();
   const [iconError, setIconError] = useState(false);
   const iconUrl = getAppIconUrl(app.icon);
 
@@ -24,7 +26,7 @@ const AppCard: React.FC<AppCardProps> = ({ app, isInstalled, isInstalling, onIns
       className="glass p-4 rounded-2xl flex items-center space-x-4 hover:bg-surface-text/10 transition-colors group"
     >
       {/* App Icon */}
-      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center text-white shadow-lg flex-shrink-0 overflow-hidden">
+      <div className="w-14 h-14 rounded-xl flex items-center justify-center text-surface-text shadow-lg flex-shrink-0 overflow-hidden" style={{ background: 'var(--ui-surface)', backdropFilter: 'var(--backdrop-glass)', WebkitBackdropFilter: 'var(--backdrop-glass)', border: '1px solid var(--ui-border-sub)' }}>
         {iconUrl && !iconError ? (
           <img 
             src={iconUrl} 
@@ -63,12 +65,12 @@ const AppCard: React.FC<AppCardProps> = ({ app, isInstalled, isInstalling, onIns
         ) : isInstalled ? (
           <>
             <Check size={14} />
-            <span>Installed</span>
+            <span>{t('market.installed')}</span>
           </>
         ) : (
           <>
             <Download size={14} />
-            <span>Get</span>
+            <span>{t('market.get')}</span>
           </>
         )}
       </button>
@@ -81,6 +83,7 @@ interface ForsionDeskMarketProps {
 }
 
 export const ForsionDeskMarket: React.FC<ForsionDeskMarketProps> = ({ onAppInstalled }) => {
+  const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState('');
   const [apps, setApps] = useState<ForsionApp[]>([]);
   const [installedAppIds, setInstalledAppIds] = useState<Set<string>>(new Set());
@@ -169,12 +172,12 @@ export const ForsionDeskMarket: React.FC<ForsionDeskMarketProps> = ({ onAppInsta
       {/* Header */}
       <div className="p-5 bg-surface-text/5 flex items-center justify-between border-b border-surface-text/10 rounded-t-2xl">
         <div className="flex items-center space-x-3 flex-1">
-          <h3 className="text-xl font-bold text-surface-text">App Market</h3>
+          <h3 className="text-xl font-bold text-surface-text">{t('market.title')}</h3>
           <div className="relative flex-1 max-w-sm">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-text opacity-50" />
             <input 
               type="text" 
-              placeholder="Search apps..." 
+              placeholder={t('market.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-1.5 bg-surface-text/5 rounded-xl text-sm text-surface-text placeholder:text-surface-text/50 focus:outline-none focus:bg-surface-text/10 transition-colors"
@@ -189,7 +192,7 @@ export const ForsionDeskMarket: React.FC<ForsionDeskMarketProps> = ({ onAppInsta
           <div className="flex items-center justify-center h-full">
             <div className="flex flex-col items-center gap-3">
               <Loader size={32} className="animate-spin text-surface-text opacity-60" />
-              <p className="text-sm text-surface-text opacity-60">Loading apps...</p>
+              <p className="text-sm text-surface-text opacity-60">{t('market.loading')}</p>
             </div>
           </div>
         ) : error ? (
@@ -200,14 +203,14 @@ export const ForsionDeskMarket: React.FC<ForsionDeskMarketProps> = ({ onAppInsta
                 onClick={loadData}
                 className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors text-sm font-bold"
               >
-                Retry
+                {t('market.retry')}
               </button>
             </div>
           </div>
         ) : filteredApps.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-sm text-surface-text opacity-60">
-              {searchQuery ? 'No apps found matching your search.' : 'No apps available.'}
+              {searchQuery ? t('market.noResults') : t('market.noApps')}
             </p>
           </div>
         ) : (

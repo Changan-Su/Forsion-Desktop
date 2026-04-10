@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Palette, Zap, Info } from 'lucide-react';
+import { Palette, Zap, Info, MousePointerClick, LayoutGrid } from 'lucide-react';
 import { Theme } from '../../types';
 import { AppearanceSettings } from './AppearanceSettings';
+import { ShortcutSettings } from './ShortcutSettings';
+import { LaunchpadSettings } from './LaunchpadSettings';
 import { PerformanceSettings } from './PerformanceSettings';
 import { AboutSettings } from './AboutSettings';
 import { useI18n } from '../../services/i18nService';
@@ -11,7 +13,7 @@ interface SettingsPanelProps {
   onThemeChange: (theme: Theme) => void;
 }
 
-type Category = 'appearance' | 'performance' | 'about';
+type Category = 'appearance' | 'shortcuts' | 'launchpad' | 'performance' | 'about';
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({ currentTheme, onThemeChange }) => {
   const { t } = useI18n();
@@ -19,6 +21,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ currentTheme, onTh
 
   const categories: { id: Category; label: string; icon: typeof Palette }[] = [
     { id: 'appearance', label: t('settings.category.appearance'), icon: Palette },
+    { id: 'shortcuts', label: t('settings.category.shortcuts'), icon: MousePointerClick },
+    { id: 'launchpad', label: t('settings.category.launchpad'), icon: LayoutGrid },
     { id: 'performance', label: t('settings.category.performance'), icon: Zap },
     { id: 'about', label: t('settings.category.about'), icon: Info },
   ];
@@ -48,6 +52,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ currentTheme, onTh
         {active === 'appearance' && (
           <AppearanceSettings currentTheme={currentTheme} onThemeChange={onThemeChange} />
         )}
+        {active === 'shortcuts' && <ShortcutSettings />}
+        {active === 'launchpad' && <LaunchpadSettings />}
         {active === 'performance' && <PerformanceSettings />}
         {active === 'about' && <AboutSettings />}
       </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { Package } from 'lucide-react';
+import { Package, Globe } from 'lucide-react';
 import {
   DndContext,
   PointerSensor,
@@ -23,15 +23,19 @@ import { APPS, ICON_MAP } from '../constants';
 import { AppId, ForsionApp, DesktopApp } from '../types';
 import SettingsStorageService from '../services/settingsStorageService';
 import dockOrderService from '../services/dockOrderService';
+import launchpadOrderService from '../services/launchpadOrderService';
 import forsionDeskService, { getAppIconUrl } from '../services/forsionDeskService';
+import { useI18n } from '../services/i18nService';
 
 interface DockApp {
   id: string;
   name: string;
+  nameKey?: string;
   icon?: string;
   iconKey?: string;
   color: string;
   isForsionApp: boolean;
+  isBookmark?: boolean;
   url?: string;
 }
 
@@ -61,7 +65,7 @@ const ForsionAppIcon: React.FC<{ icon?: string; name: string; size?: number }> =
     );
   }
 
-  return <Package size={size} className="text-white pointer-events-none" />;
+  return <Package size={size} className="pointer-events-none" />;
 };
 
 // Draggable Dock Item Component
@@ -73,13 +77,14 @@ interface DraggableDockItemProps {
   gpuAcceleration: boolean;
 }
 
-const DraggableDockItem: React.FC<DraggableDockItemProps> = ({ 
-  app, 
-  isActive, 
+const DraggableDockItem: React.FC<DraggableDockItemProps> = ({
+  app,
+  isActive,
   onLaunch,
   gpuStyle,
   gpuAcceleration
 }) => {
+  const { t } = useI18n();
   const {
     attributes,
     listeners,
@@ -112,16 +117,27 @@ const DraggableDockItem: React.FC<DraggableDockItemProps> = ({
         whileHover={!isDragging ? { scale: 1.2, y: -10 } : {}}
         whileTap={{ scale: 0.9 }}
         onClick={handleClick}
-        className={`w-12 h-12 rounded-xl ${app.color} flex items-center justify-center text-white shadow-lg relative overflow-hidden transition-all duration-300 ${
-          isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-pointer'
-        }`}
+        className={`w-12 h-12 rounded-xl ${app.color} flex items-center justify-center shadow-lg relative overflow-hidden transition-all duration-300 ${
+          app.isForsionApp || app.isBookmark || !app.color ? 'text-surface-text' : 'text-white'
+        } ${isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-pointer'}`}
         data-gpu-accelerated={gpuAcceleration ? 'true' : undefined}
-        style={gpuStyle}
+        style={app.isForsionApp || app.isBookmark || !app.color ? { ...gpuStyle, background: 'var(--icon-surface)', backdropFilter: 'var(--backdrop-glass)', WebkitBackdropFilter: 'var(--backdrop-glass)', border: '1px solid var(--ui-border-sub)' } : gpuStyle}
       >
-        <div className="absolute inset-0 bg-white/10 group-hover:bg-transparent transition-colors" />
-        <div className="w-6 h-6">
+        {app.color && <div className="absolute inset-0 bg-white/10 group-hover:bg-transparent transition-colors" />}
+        <div className="w-6 h-6 flex items-center justify-center">
           {app.isForsionApp ? (
             <ForsionAppIcon icon={app.icon} name={app.name} size={24} />
+          ) : app.isBookmark ? (
+            app.icon ? (
+              <img
+                src={app.icon}
+                alt={app.name}
+                className="w-full h-full object-cover rounded-lg pointer-events-none"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            ) : (
+              <Globe size={20} className="pointer-events-none" />
+            )
           ) : (
             app.iconKey && ICON_MAP[app.iconKey]
           )}
@@ -132,8 +148,8 @@ const DraggableDockItem: React.FC<DraggableDockItemProps> = ({
         <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-surface-text/80 rounded-full" />
       )}
 
-      <div className="absolute -top-10 left-1/2 -translate-x-1/2 glass px-2 py-1 rounded text-[10px] text-surface-text opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
-        {app.name}
+      <div className="absolute -top-10 left-1/2 -translate-x-1/2 group-hover:-translate-y-2.5 glass px-2 py-1 rounded text-[10px] text-surface-text opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap">
+        {app.nameKey ? t(app.nameKey) : app.name}
       </div>
     </div>
   );
@@ -144,6 +160,9 @@ export const Dock: React.FC<DockProps> = ({ onLaunch, activeApps, onLaunchForsio
   const [dockApps, setDockApps] = useState<DockApp[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [forsionApps, setForsionApps] = useState<ForsionApp[]>([]);
+  // Bumps whenever the pinned set or launchpad data changes, so the dock
+  // rebuild effect re-runs independently of the Forsion app fetch.
+  const [pinnedVersion, setPinnedVersion] = useState(0);
 
   // Load Forsion apps
   useEffect(() => {
@@ -161,6 +180,9 @@ export const Dock: React.FC<DockProps> = ({ onLaunch, activeApps, onLaunchForsio
 
     const handleAppChange = () => {
       loadForsionApps();
+      // Also trigger a rebuild for pinned bookmarks that don't depend on
+      // the Forsion apps fetch completing.
+      setPinnedVersion(v => v + 1);
     };
 
     window.addEventListener('forsion-app-installed', handleAppChange);
@@ -178,17 +200,20 @@ export const Dock: React.FC<DockProps> = ({ onLaunch, activeApps, onLaunchForsio
   useEffect(() => {
     const pinnedIds = dockOrderService.getPinnedApps();
     const savedOrder = dockOrderService.getOrder();
-    
+    const launchpadData = launchpadOrderService.getData();
+
     const defaultApps: DockApp[] = APPS.map(app => ({
         id: app.id,
         name: app.name,
+        nameKey: app.nameKey,
         iconKey: app.icon,
         color: app.color,
         isForsionApp: false,
       }));
 
-    // Add pinned Forsion apps
-    const pinnedForsionApps: DockApp[] = pinnedIds
+    // Resolve each pinned ID against Forsion apps first, then launchpad bookmarks.
+    // This lets users pin any non-default drawer item (Forsion app or bookmark).
+    const pinnedItems: DockApp[] = pinnedIds
       .filter(id => !defaultApps.some(app => app.id === id))
       .map(id => {
         const forsionApp = forsionApps.find(app => app.id === id);
@@ -197,9 +222,21 @@ export const Dock: React.FC<DockProps> = ({ onLaunch, activeApps, onLaunchForsio
             id: forsionApp.id,
             name: forsionApp.name,
             icon: forsionApp.icon,
-            color: 'bg-gradient-to-br from-purple-500/80 to-pink-500/80',
+            color: '',
             isForsionApp: true,
             url: forsionApp.url,
+          };
+        }
+        const bookmark = launchpadData.bookmarks[id];
+        if (bookmark) {
+          return {
+            id: bookmark.id,
+            name: bookmark.name,
+            icon: bookmark.icon,
+            color: '',
+            isForsionApp: false,
+            isBookmark: true,
+            url: bookmark.url,
           };
         }
         return null;
@@ -207,7 +244,7 @@ export const Dock: React.FC<DockProps> = ({ onLaunch, activeApps, onLaunchForsio
       .filter((app): app is DockApp => app !== null);
 
     // Combine all apps
-    let allApps = [...defaultApps, ...pinnedForsionApps];
+    let allApps = [...defaultApps, ...pinnedItems];
 
     // Apply saved order if available
     if (savedOrder.length > 0) {
@@ -219,7 +256,7 @@ export const Dock: React.FC<DockProps> = ({ onLaunch, activeApps, onLaunchForsio
     }
 
     setDockApps(allApps);
-  }, [forsionApps]);
+  }, [forsionApps, pinnedVersion]);
 
   useEffect(() => {
     const gpuEnabled = SettingsStorageService.getGPUAcceleration();
@@ -239,12 +276,12 @@ export const Dock: React.FC<DockProps> = ({ onLaunch, activeApps, onLaunchForsio
     };
   }, []);
 
-  // Long press sensor (300ms)
+  // Distance-based sensor: any 8px pointer movement initiates drag.
+  // Clicks (no movement) still propagate to onClick for app launch.
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        delay: 300,
-        tolerance: 5,
+        distance: 8,
       },
     })
   );
@@ -277,6 +314,10 @@ export const Dock: React.FC<DockProps> = ({ onLaunch, activeApps, onLaunchForsio
   };
 
   const handleLaunch = (app: DockApp) => {
+    if (app.isBookmark && app.url) {
+      window.open(app.url, '_blank', 'noopener,noreferrer');
+      return;
+    }
     if (app.isForsionApp && app.url) {
       if (onLaunchForsionApp) {
         const forsionApp = forsionApps.find(fa => fa.id === app.id);
@@ -337,11 +378,21 @@ export const Dock: React.FC<DockProps> = ({ onLaunch, activeApps, onLaunchForsio
             dropAnimation={null}
           >
             {activeApp ? (
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-2xl opacity-90">
-                <div className={`w-12 h-12 rounded-xl ${activeApp.color} flex items-center justify-center`}>
-                  <div className="w-6 h-6">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-2xl opacity-90 ${activeApp.isForsionApp || activeApp.isBookmark || !activeApp.color ? 'text-surface-text' : 'text-white'}`}>
+                <div className={`w-12 h-12 rounded-xl ${activeApp.color} flex items-center justify-center`} style={activeApp.isForsionApp || activeApp.isBookmark || !activeApp.color ? { background: 'var(--icon-surface)', backdropFilter: 'var(--backdrop-glass)', WebkitBackdropFilter: 'var(--backdrop-glass)', border: '1px solid var(--ui-border-sub)' } : undefined}>
+                  <div className="w-6 h-6 flex items-center justify-center">
                     {activeApp.isForsionApp ? (
                       <ForsionAppIcon icon={activeApp.icon} name={activeApp.name} size={24} />
+                    ) : activeApp.isBookmark ? (
+                      activeApp.icon ? (
+                        <img
+                          src={activeApp.icon}
+                          alt={activeApp.name}
+                          className="w-full h-full object-cover rounded-lg pointer-events-none"
+                        />
+                      ) : (
+                        <Globe size={20} className="pointer-events-none" />
+                      )
                     ) : (
                       activeApp.iconKey && ICON_MAP[activeApp.iconKey]
                     )}

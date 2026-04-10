@@ -7,6 +7,30 @@ import { BingGallery } from './BingGallery';
 import { useI18n } from '../../services/i18nService';
 
 const SEARCH_ENGINE_KEY = 'forsion_desktop_search_engine';
+const AUTO_ADAPT_KEY = 'forsion_desktop_auto_adapt';
+const BING_DAILY_KEY = 'forsion_desktop_bing_daily';
+
+// Neutral theme colors used when auto-adapt is off
+const NEUTRAL_DARK: Partial<Theme> = {
+  primary: 'rgba(255,255,255,0.85)',
+  secondary: 'rgba(255,255,255,0.5)',
+  surface: 'rgba(30,30,30,0.45)',
+  text: 'rgba(255,255,255,0.94)',
+};
+const NEUTRAL_LIGHT: Partial<Theme> = {
+  primary: 'rgba(30,30,30,0.85)',
+  secondary: 'rgba(60,60,60,0.5)',
+  surface: 'rgba(255,255,255,0.45)',
+  text: 'rgba(30,30,30,0.94)',
+};
+
+export function getAutoAdapt(): boolean {
+  return localStorage.getItem(AUTO_ADAPT_KEY) === 'true';
+}
+
+export function getBingDaily(): boolean {
+  return localStorage.getItem(BING_DAILY_KEY) === 'true';
+}
 
 interface AppearanceSettingsProps {
   currentTheme: Theme;
@@ -15,11 +39,12 @@ interface AppearanceSettingsProps {
 
 export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({ currentTheme, onThemeChange }) => {
   const { t } = useI18n();
-  const [autoAdapt, setAutoAdapt] = useState(true);
+  const [autoAdapt, setAutoAdapt] = useState(getAutoAdapt);
   const [extracting, setExtracting] = useState(false);
   const [vignetting, setVignetting] = useState(() => localStorage.getItem('forsion_desktop_vignetting') !== 'false');
-  const [focusBlur, setFocusBlur] = useState(() => localStorage.getItem('forsion_desktop_focus_blur') !== 'false');
+  const [focusBlur, setFocusBlur] = useState(() => localStorage.getItem('forsion_desktop_focus_blur') === 'true');
   const [defaultEngine, setDefaultEngine] = useState(() => localStorage.getItem(SEARCH_ENGINE_KEY) || DEFAULT_SEARCH_ENGINE);
+  const [bingDaily, setBingDaily] = useState(getBingDaily);
 
   const toggleVignetting = () => {
     const next = !vignetting;
@@ -43,12 +68,15 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({ currentT
         onThemeChange(theme);
       } catch (err) {
         console.error('[AppearanceSettings] Color extraction failed:', err);
-        onThemeChange({ ...currentTheme, id: 'custom-wallpaper', name: 'Custom Wallpaper', wallpaper: imageUrl });
+        const neutral = currentTheme.isDark ? NEUTRAL_DARK : NEUTRAL_LIGHT;
+        onThemeChange({ ...currentTheme, ...neutral, id: 'custom-wallpaper', name: 'Custom Wallpaper', wallpaper: imageUrl });
       } finally {
         setExtracting(false);
       }
     } else {
-      onThemeChange({ ...currentTheme, id: 'custom-wallpaper', name: 'Custom Wallpaper', wallpaper: imageUrl });
+      // Auto-adapt off: apply neutral colors with the new wallpaper
+      const neutral = currentTheme.isDark ? NEUTRAL_DARK : NEUTRAL_LIGHT;
+      onThemeChange({ ...currentTheme, ...neutral, id: 'custom-wallpaper', name: 'Custom Wallpaper', wallpaper: imageUrl });
     }
   };
 
@@ -131,6 +159,31 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({ currentT
         </div>
       </section>
 
+      {/* Bing daily auto-change toggle */}
+      <section className="bg-surface-text/5 p-4 rounded-xl">
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <div className="text-sm font-bold text-surface-text mb-1">{t('appearance.bingDaily')}</div>
+            <div className="text-xs text-surface-text/50">{t('appearance.bingDailyDesc')}</div>
+          </div>
+          <button
+            onClick={() => {
+              const next = !bingDaily;
+              setBingDaily(next);
+              localStorage.setItem(BING_DAILY_KEY, String(next));
+              window.dispatchEvent(new CustomEvent('bing-daily-changed', { detail: { enabled: next } }));
+            }}
+            className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${
+              bingDaily ? 'bg-accent' : 'bg-surface-text/20'
+            }`}
+          >
+            <span className={`absolute top-1 left-1 w-5 h-5 rounded-full shadow-md transform transition-transform duration-200 ${
+              bingDaily ? 'translate-x-5 bg-white' : 'translate-x-0 bg-surface-text/40'
+            }`} />
+          </button>
+        </div>
+      </section>
+
       {/* Auto-adapt toggle */}
       <section className="bg-surface-text/5 p-4 rounded-xl">
         <div className="flex items-center justify-between">
@@ -139,7 +192,29 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({ currentT
             <div className="text-xs text-surface-text/50">{t('appearance.autoAdaptDesc')}</div>
           </div>
           <button
-            onClick={() => setAutoAdapt(!autoAdapt)}
+            onClick={async () => {
+              const next = !autoAdapt;
+              setAutoAdapt(next);
+              localStorage.setItem(AUTO_ADAPT_KEY, String(next));
+              if (currentTheme.wallpaper) {
+                if (next) {
+                  // Re-extract colors from current wallpaper
+                  setExtracting(true);
+                  try {
+                    const theme = await generateThemeFromWallpaper(currentTheme.wallpaper);
+                    onThemeChange(theme);
+                  } catch {
+                    // keep current theme
+                  } finally {
+                    setExtracting(false);
+                  }
+                } else {
+                  // Reset to neutral colors, keep wallpaper
+                  const neutral = currentTheme.isDark ? NEUTRAL_DARK : NEUTRAL_LIGHT;
+                  onThemeChange({ ...currentTheme, ...neutral, id: 'custom-wallpaper', name: 'Custom Wallpaper' });
+                }
+              }
+            }}
             className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${
               autoAdapt ? 'bg-accent' : 'bg-surface-text/20'
             }`}
