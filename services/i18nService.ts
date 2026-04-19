@@ -39,6 +39,13 @@ const translations: Record<string, Record<Locale, string>> = {
   'app.name.launchpad': { zh: '抽屉', en: 'Drawer' },
   'app.name.settings': { zh: '设置', en: 'Settings' },
 
+  // Mobile tabs
+  'mobile.tab.home': { zh: '桌面', en: 'Home' },
+  'mobile.tab.launchpad': { zh: '抽屉', en: 'Drawer' },
+  'mobile.tab.market': { zh: '市场', en: 'Market' },
+  'mobile.tab.settings': { zh: '设置', en: 'Settings' },
+  'mobile.searchOrChat': { zh: '搜索或 AI 聊天...', en: 'Search or AI Chat...' },
+
   // General
   'loading': { zh: '加载中...', en: 'Loading...' },
   'loginRequired': { zh: '请先登录', en: 'Please login first' },

@@ -21,12 +21,35 @@ import { getAutoAdapt, getBingDaily } from './components/Settings/AppearanceSett
 import { fetchBingWallpapers } from './services/wallpaperService';
 import { generateThemeFromWallpaper } from './services/colorExtractionService';
 import { initDeskPlugins } from './plugins/initPlugins';
+import MobileShell from './components/MobileShell';
 
 // Initialize desk plugins (idempotent — safe on HMR)
 initDeskPlugins();
 
+// Mobile breakpoint — below this width we render MobileShell instead of the
+// desktop window manager. Hook uses matchMedia so orientation/resize works.
+const MOBILE_QUERY = '(max-width: 768px)';
+const useIsMobile = (): boolean => {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia(MOBILE_QUERY).matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(MOBILE_QUERY);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    // Safari < 14 uses addListener/removeListener
+    if (mq.addEventListener) mq.addEventListener('change', handler);
+    else mq.addListener(handler);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener('change', handler);
+      else mq.removeListener(handler);
+    };
+  }, []);
+  return isMobile;
+};
+
 const App: React.FC = () => {
   const { t } = useI18n();
+  const isMobile = useIsMobile();
   const [windows, setWindows] = useState<WindowState[]>([]);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [nextZIndex, setNextZIndex] = useState(10);
@@ -454,6 +477,23 @@ const App: React.FC = () => {
       <div className="relative w-screen h-screen overflow-hidden transition-colors duration-500 flex items-center justify-center">
         <div className="text-surface-text opacity-50">{t('loading')}</div>
       </div>
+    );
+  }
+
+  // Mobile branch — no window manager, home/launchpad/market/settings tabs.
+  // Home mirrors PC layout: wallpaper + title-zone cards + inline search/chat bar.
+  // Services layer (auth/chat/settings/theme) is shared; only the view layer differs.
+  if (isMobile) {
+    return (
+      <MobileShell
+        isAuthenticated={isAuthenticated}
+        currentUser={currentUser}
+        onLogout={handleLogout}
+        theme={currentTheme}
+        onThemeChange={updateTheme}
+        focusBlur={focusBlur}
+        vignetting={vignetting}
+      />
     );
   }
 
