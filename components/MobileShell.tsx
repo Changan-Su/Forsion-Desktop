@@ -7,9 +7,7 @@ import {
   Settings as SettingsIcon,
   Send,
   Plus,
-  LogOut,
   User as UserIcon,
-  Search as SearchIcon,
   Sparkles,
   ChevronDown,
 } from 'lucide-react';
@@ -27,7 +25,8 @@ import { ModeToggle } from './ModeToggle';
 import { LocaleToggle } from './LocaleToggle';
 import { Launchpad } from './Launchpad';
 import { ForsionDeskMarket } from './ForsionDeskMarket';
-import { SettingsPanel } from './Settings/SettingsPanel';
+import MobileSettings from './MobileSettings';
+import MobileSearchBar from './MobileSearchBar';
 import type { AppId, ForsionApp, Theme } from '../types';
 
 type MobileTabId = 'home' | 'launchpad' | 'market' | 'settings';
@@ -68,11 +67,17 @@ const MobileShell: React.FC<MobileShellProps> = ({
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<MobileTabId>('home');
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatInitialInput, setChatInitialInput] = useState<string>('');
 
   // Close chat when switching tabs away from home
   useEffect(() => {
     if (activeTab !== 'home') setIsChatOpen(false);
   }, [activeTab]);
+
+  const openChatWith = useCallback((initial?: string) => {
+    setChatInitialInput(initial || '');
+    setIsChatOpen(true);
+  }, []);
 
   // Focus blur fires when chat is open (mirrors PC `isDesktopFocused` logic)
   const isFocused = isChatOpen;
@@ -99,9 +104,9 @@ const MobileShell: React.FC<MobileShellProps> = ({
         className={`absolute inset-0 z-0 bg-desktop-surface${focusBlur && isFocused ? ' wallpaper-focus-blur' : ''}`}
       >
         <div className="brush-stroke" />
-        <div className="absolute top-[5%] right-[10%] w-[60%] h-[40%] bg-white opacity-[0.1] blur-[140px] rounded-full" />
-        <div className="absolute top-[40%] left-[5%] w-[50%] h-[40%] bg-white opacity-[0.05] blur-[110px] rounded-full" />
-        <div className="absolute bottom-[0%] right-[-5%] w-[70%] h-[50%] bg-black opacity-[0.1] blur-[120px] rounded-full" />
+        <div className="ambient-glow absolute top-[5%] right-[10%] w-[60%] h-[40%] bg-white opacity-[0.1] blur-[140px] rounded-full" />
+        <div className="ambient-glow absolute top-[40%] left-[5%] w-[50%] h-[40%] bg-white opacity-[0.05] blur-[110px] rounded-full" />
+        <div className="ambient-glow absolute bottom-[0%] right-[-5%] w-[70%] h-[50%] bg-black opacity-[0.1] blur-[120px] rounded-full" />
       </div>
       <div
         className={`bg-overlay${vignetting ? ' vignetting' : ''}${vignetting || (focusBlur && isFocused) ? ' show' : ''}${focusBlur && isFocused ? ' focus-lite' : ''}`}
@@ -159,14 +164,15 @@ const MobileShell: React.FC<MobileShellProps> = ({
       </header>
 
       {/* ── Main content ─────────────────────────────────────────────── */}
+      {/* paddingBottom leaves room for the floating pill tab bar (its height + gap + safe-area) */}
       <main
         className="relative flex-1 min-h-0 z-10"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)' }}
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)' }}
       >
         {activeTab === 'home' && (
           <MobileHome
             isAuthenticated={isAuthenticated}
-            onOpenChat={() => setIsChatOpen(true)}
+            onOpenChat={openChatWith}
           />
         )}
         {activeTab === 'launchpad' && (
@@ -175,31 +181,21 @@ const MobileShell: React.FC<MobileShellProps> = ({
           </div>
         )}
         {activeTab === 'market' && (
-          <div className="absolute inset-0 overflow-y-auto">
+          <div
+            className="absolute inset-0 overflow-y-auto overscroll-contain"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)' }}
+          >
             <ForsionDeskMarket />
           </div>
         )}
         {activeTab === 'settings' && (
-          <div
-            className="absolute inset-0 overflow-y-auto"
-            style={{ background: 'var(--ui-surface)', backdropFilter: 'var(--backdrop-glass)' }}
-          >
-            <SettingsPanel currentTheme={theme} onThemeChange={onThemeChange} />
-            {isAuthenticated && (
-              <div className="p-4">
-                <button
-                  onClick={onLogout}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl"
-                  style={{
-                    background: 'var(--ui-surface-sub)',
-                    border: '1px solid var(--ui-border-sub)',
-                    color: 'var(--ui-text)',
-                  }}
-                >
-                  <LogOut size={16} /> {t('user.logout')}
-                </button>
-              </div>
-            )}
+          <div className="absolute inset-0">
+            <MobileSettings
+              currentTheme={theme}
+              onThemeChange={onThemeChange}
+              isAuthenticated={isAuthenticated}
+              onLogout={onLogout}
+            />
           </div>
         )}
       </main>
@@ -209,50 +205,58 @@ const MobileShell: React.FC<MobileShellProps> = ({
         {isChatOpen && (
           <MobileChatOverlay
             isAuthenticated={isAuthenticated}
+            initialInput={chatInitialInput}
             onClose={() => setIsChatOpen(false)}
           />
         )}
       </AnimatePresence>
 
-      {/* ── Bottom tab bar ───────────────────────────────────────────── */}
+      {/* ── Bottom tab bar — floating pill ───────────────────────────── */}
       <nav
-        className="absolute left-0 right-0 bottom-0 z-20 flex items-stretch"
+        className="absolute left-0 right-0 z-20 flex justify-center pointer-events-none"
         style={{
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-          borderTop: '1px solid var(--ui-border-sub)',
-          background: 'var(--ui-surface)',
-          backdropFilter: 'var(--backdrop-glass)',
-          WebkitBackdropFilter: 'var(--backdrop-glass)',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)',
         }}
       >
-        <TabButton
-          id="home"
-          active={activeTab === 'home'}
-          onClick={setActiveTab}
-          icon={<HomeIcon size={20} />}
-          label={t('mobile.tab.home')}
-        />
-        <TabButton
-          id="launchpad"
-          active={activeTab === 'launchpad'}
-          onClick={setActiveTab}
-          icon={<LayoutGrid size={20} />}
-          label={t('mobile.tab.launchpad')}
-        />
-        <TabButton
-          id="market"
-          active={activeTab === 'market'}
-          onClick={setActiveTab}
-          icon={<Store size={20} />}
-          label={t('mobile.tab.market')}
-        />
-        <TabButton
-          id="settings"
-          active={activeTab === 'settings'}
-          onClick={setActiveTab}
-          icon={<SettingsIcon size={20} />}
-          label={t('mobile.tab.settings')}
-        />
+        <div
+          className="pointer-events-auto flex items-stretch gap-1 p-1.5 rounded-full"
+          style={{
+            background: 'var(--ui-surface)',
+            backdropFilter: 'var(--backdrop-glass)',
+            WebkitBackdropFilter: 'var(--backdrop-glass)',
+            border: '1px solid var(--ui-border-sub)',
+            boxShadow: '0 12px 36px rgba(0,0,0,0.18), 0 1px 0 rgba(255,255,255,0.06) inset',
+          }}
+        >
+          <TabButton
+            id="home"
+            active={activeTab === 'home'}
+            onClick={setActiveTab}
+            icon={<HomeIcon size={18} strokeWidth={2.25} />}
+            label={t('mobile.tab.home')}
+          />
+          <TabButton
+            id="launchpad"
+            active={activeTab === 'launchpad'}
+            onClick={setActiveTab}
+            icon={<LayoutGrid size={18} strokeWidth={2.25} />}
+            label={t('mobile.tab.launchpad')}
+          />
+          <TabButton
+            id="market"
+            active={activeTab === 'market'}
+            onClick={setActiveTab}
+            icon={<Store size={18} strokeWidth={2.25} />}
+            label={t('mobile.tab.market')}
+          />
+          <TabButton
+            id="settings"
+            active={activeTab === 'settings'}
+            onClick={setActiveTab}
+            icon={<SettingsIcon size={18} strokeWidth={2.25} />}
+            label={t('mobile.tab.settings')}
+          />
+        </div>
       </nav>
     </div>
   );
@@ -267,14 +271,23 @@ const TabButton: React.FC<{
 }> = ({ id, active, onClick, icon, label }) => (
   <button
     onClick={() => onClick(id)}
-    className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5"
+    className="relative flex items-center gap-1.5 rounded-full transition-all duration-250 active:scale-95"
     style={{
-      color: active ? 'var(--color-primary)' : 'var(--ui-text-muted)',
-      transition: 'color 180ms var(--ease-apple)',
+      padding: active ? '8px 14px' : '8px 10px',
+      color: active ? '#fff' : 'var(--ui-text-muted)',
+      background: active ? 'var(--color-primary)' : 'transparent',
+      transition: 'background-color 200ms var(--ease-apple), color 200ms var(--ease-apple), padding 200ms var(--ease-apple)',
     }}
   >
     {icon}
-    <span className="text-[10px] font-medium">{label}</span>
+    {active && (
+      <span
+        className="text-[12px] font-semibold whitespace-nowrap"
+        style={{ letterSpacing: '0.01em' }}
+      >
+        {label}
+      </span>
+    )}
   </button>
 );
 
@@ -284,10 +297,17 @@ const TabButton: React.FC<{
 
 const MobileHome: React.FC<{
   isAuthenticated: boolean;
-  onOpenChat: () => void;
+  onOpenChat: (initialInput?: string) => void;
 }> = ({ isAuthenticated, onOpenChat }) => {
   const { t } = useI18n();
   const [layout, setLayout] = useState<WidgetLayoutData>(() => widgetLayoutService.getLayout());
+  const [now, setNow] = useState(() => new Date());
+
+  // Tick the clock once a minute so the greeting + time stay current
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Refresh layout if it changes in another tab (e.g. edited on PC then opened on phone)
   useEffect(() => {
@@ -300,52 +320,98 @@ const MobileHome: React.FC<{
 
   const titleCards = layout.zones.title;
 
+  // Time-of-day greeting — single word that sets the mood
+  const greetingKey = useMemo(() => {
+    const h = now.getHours();
+    if (h < 6) return 'mobile.greeting.night';
+    if (h < 12) return 'mobile.greeting.morning';
+    if (h < 18) return 'mobile.greeting.afternoon';
+    return 'mobile.greeting.evening';
+  }, [now]);
+
+  const timeStr = useMemo(() => {
+    return now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+  }, [now]);
+
+  // Weekday + date as a one-line subtitle (editorial tone)
+  const dateStr = useMemo(() => {
+    return now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  }, [now]);
+
+  const handleOpenChat = useCallback((initial?: string) => {
+    if (!isAuthenticated) {
+      redirectToLogin('desktop');
+      return;
+    }
+    onOpenChat(initial);
+  }, [isAuthenticated, onOpenChat]);
+
   return (
-    <div className="absolute inset-0 flex flex-col items-center px-5">
-      {/* Title zone cards — render directly via registry (no dnd, no edit) */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-4 w-full">
-        {titleCards.length === 0 ? (
-          <div className="text-center opacity-60">
-            <div className="text-2xl font-semibold text-surface-text">Forsion</div>
-            <div className="text-xs text-surface-text opacity-70 mt-1">All You Need</div>
+    <div className="relative h-full w-full flex flex-col items-center px-5">
+      {/* ── Hero zone ──────────────────────────────────────────────── */}
+      {/* Top spacer lets the hero sit roughly 18% from top — editorial breathing room */}
+      <div className="h-[6vh] flex-shrink-0" />
+
+      <div className="w-full max-w-md">
+        {/* Greeting meta — small caps + time chip */}
+        <div className="flex items-baseline justify-between">
+          <div
+            className="text-[11px] font-semibold uppercase tracking-[0.22em] opacity-70"
+            style={{ color: 'var(--ui-text)' }}
+          >
+            {t(greetingKey)}
           </div>
-        ) : (
-          titleCards.map((placement) => (
-            <MobileTitleCard key={placement.id} placement={placement} />
-          ))
-        )}
+          <div
+            className="text-[11px] font-mono tabular-nums opacity-60"
+            style={{ color: 'var(--ui-text)' }}
+          >
+            {timeStr}
+          </div>
+        </div>
+
+        {/* Cursive brand title — hero */}
+        <h1
+          className="font-cursive leading-[1.05] mt-3"
+          style={{
+            fontSize: 'clamp(44px, 12vw, 56px)',
+            color: 'var(--ui-text)',
+            textShadow: '0 2px 24px rgba(0,0,0,0.25)',
+            fontWeight: 700,
+          }}
+        >
+          Forsion is
+          <br />
+          All You Need
+        </h1>
+
+        {/* Date subtitle — quiet */}
+        <div
+          className="mt-3 text-[12px] opacity-55 capitalize"
+          style={{ color: 'var(--ui-text)' }}
+        >
+          {dateStr}
+        </div>
       </div>
 
-      {/* Inline search/chat bar — tap to open chat overlay */}
-      <button
-        onClick={() => {
-          if (!isAuthenticated) {
-            redirectToLogin('desktop');
-            return;
-          }
-          onOpenChat();
-        }}
-        className="w-full max-w-md mb-6 flex items-center gap-3 px-4 py-3.5 rounded-full text-left"
-        style={{
-          background: 'var(--ui-surface)',
-          backdropFilter: 'var(--backdrop-glass)',
-          WebkitBackdropFilter: 'var(--backdrop-glass)',
-          border: '1px solid var(--ui-border-sub)',
-          color: 'var(--ui-text)',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-        }}
-      >
-        <SearchIcon size={18} className="opacity-60 flex-shrink-0" />
-        <span className="flex-1 text-sm opacity-60 truncate">
-          {t('mobile.searchOrChat')}
-        </span>
-        <div
-          className="w-8 h-8 rounded-full flex items-center justify-center text-white flex-shrink-0"
-          style={{ background: 'var(--color-primary)' }}
-        >
-          <Sparkles size={14} />
+      {/* ── Title-zone cards (if user has configured any on desktop) ──── */}
+      {titleCards.length > 0 && (
+        <div className="w-full max-w-md mt-8 space-y-3">
+          {titleCards.map((placement) => (
+            <MobileTitleCard key={placement.id} placement={placement} />
+          ))}
         </div>
-      </button>
+      )}
+
+      {/* Flex spacer pushes the search bar toward the bottom */}
+      <div className="flex-1" />
+
+      {/* ── Search bar ───────────────────────────────────────────── */}
+      {/* Real search input with engine switcher (default: Bing). Empty input
+          + tap Sparkles → opens AI chat. Text + Enter → web search in new tab
+          (or AI chat if engine = 'ai'). */}
+      <div style={{ marginBottom: 8 }} className="w-full max-w-md">
+        <MobileSearchBar onOpenChat={handleOpenChat} />
+      </div>
     </div>
   );
 };
@@ -369,11 +435,12 @@ const MobileTitleCard: React.FC<{ placement: WidgetPlacement }> = ({ placement }
 
 const MobileChatOverlay: React.FC<{
   isAuthenticated: boolean;
+  initialInput?: string;
   onClose: () => void;
-}> = ({ isAuthenticated, onClose }) => {
+}> = ({ isAuthenticated, initialInput, onClose }) => {
   const { t } = useI18n();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState(initialInput || '');
   const [isLoading, setIsLoading] = useState(false);
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
   const [availableModels, setAvailableModels] = useState<AIModel[]>([]);

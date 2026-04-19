@@ -13,7 +13,9 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
 
-    location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot)$ {
+    # 长缓存静态资源。包含 .zip 以支持浏览器扩展下载（public/downloads/*.zip）
+    # 二次命中缓存，不需要每次重传。
+    location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot|zip)$ {
         expires 1y;
         add_header Cache-Control "public, immutable";
     }

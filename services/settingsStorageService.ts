@@ -10,6 +10,7 @@ import type { UserSettings } from '../types/shared';
 
 const SETTINGS_KEY = 'forsion_desktop_settings';
 const GLOBAL_GPU_KEY = 'forsion_desktop_gpu_acceleration';
+const REDUCED_FX_KEY = 'forsion_desktop_reduced_visual_fx';
 
 interface BackendSettings {
   theme?: string;
@@ -140,9 +141,22 @@ export class SettingsStorageService {
     }
   }
 
+  // Reduced visual effects — turn off expensive GPU filters (backdrop-filter,
+  // wallpaper blur, ambient glow circles, large box-shadows, vignetting)
+  // for lower-end devices. Purely local preference; no backend sync needed.
+  static getReducedVisualFx(): boolean {
+    const v = localStorage.getItem(REDUCED_FX_KEY);
+    return v === 'true'; // default: false (full effects)
+  }
+
+  static setReducedVisualFx(enabled: boolean): void {
+    localStorage.setItem(REDUCED_FX_KEY, enabled.toString());
+  }
+
   static clearSettings(): void {
     localStorage.removeItem(SETTINGS_KEY);
     localStorage.removeItem(GLOBAL_GPU_KEY);
+    localStorage.removeItem(REDUCED_FX_KEY);
   }
 }
 

@@ -42,6 +42,8 @@ export interface ForsionApp {
   icon?: string;  // Supports: preset:icon-id, data:image/..., or URL
   url: string;
   isGlobal: boolean;
+  // 内置应用：所有用户默认拥有，但可卸载
+  isBuiltin?: boolean;
   isActive: boolean;
   sortOrder: number;
   category?: string;

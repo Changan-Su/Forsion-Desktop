@@ -99,10 +99,10 @@ export const AnnouncementCard: React.FC<DeskCardProps> = () => {
         <div className="space-y-3 pt-3">
           {announcements!.map((a) => (
             <div key={a.id} className="space-y-0.5">
-              <div className="text-xs font-semibold text-surface-text opacity-90">
+              <div className="text-xs font-semibold text-surface-text opacity-90 whitespace-pre-wrap break-words">
                 {locale === 'zh' ? a.titleZh : (a.titleEn || a.titleZh)}
               </div>
-              <div className="text-[11px] text-surface-text opacity-60 leading-relaxed">
+              <div className="text-[11px] text-surface-text opacity-60 leading-relaxed whitespace-pre-wrap break-words">
                 {locale === 'zh' ? a.contentZh : (a.contentEn || a.contentZh)}
               </div>
             </div>

@@ -29,7 +29,11 @@ export function getAutoAdapt(): boolean {
 }
 
 export function getBingDaily(): boolean {
-  return localStorage.getItem(BING_DAILY_KEY) === 'true';
+  // 新用户默认开启：localStorage 未设置过（首次进入）就返回 true。
+  // 只有当用户显式关闭过（写入 'false'）才返回 false。
+  const v = localStorage.getItem(BING_DAILY_KEY);
+  if (v === null) return true;
+  return v === 'true';
 }
 
 interface AppearanceSettingsProps {

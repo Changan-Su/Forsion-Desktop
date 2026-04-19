@@ -45,6 +45,17 @@ const translations: Record<string, Record<Locale, string>> = {
   'mobile.tab.market': { zh: '市场', en: 'Market' },
   'mobile.tab.settings': { zh: '设置', en: 'Settings' },
   'mobile.searchOrChat': { zh: '搜索或 AI 聊天...', en: 'Search or AI Chat...' },
+  'mobile.searchWith': { zh: '用 {engine} 搜索...', en: 'Search with {engine}...' },
+  'mobile.changeEngine': { zh: '切换搜索引擎', en: 'Change search engine' },
+  'mobile.chooseEngine': { zh: '选择搜索引擎', en: 'Choose Search Engine' },
+  'mobile.search': { zh: '搜索', en: 'Search' },
+  'mobile.openChat': { zh: '打开 AI 聊天', en: 'Open AI Chat' },
+  'mobile.close': { zh: '关闭', en: 'Close' },
+  'mobile.back': { zh: '返回', en: 'Back' },
+  'mobile.greeting.morning': { zh: '早上好', en: 'Good morning' },
+  'mobile.greeting.afternoon': { zh: '下午好', en: 'Good afternoon' },
+  'mobile.greeting.evening': { zh: '晚上好', en: 'Good evening' },
+  'mobile.greeting.night': { zh: '夜深了', en: 'Still up' },
 
   // General
   'loading': { zh: '加载中...', en: 'Loading...' },
@@ -72,6 +83,7 @@ const translations: Record<string, Record<Locale, string>> = {
   'settings.category.appearance': { zh: '外观', en: 'Appearance' },
   'settings.category.shortcuts': { zh: '快捷操作', en: 'Shortcuts' },
   'settings.category.performance': { zh: '性能', en: 'Performance' },
+  'settings.category.extension': { zh: '浏览器扩展', en: 'Extension' },
   'settings.category.about': { zh: '关于', en: 'About' },
 
   // Settings — Shortcuts
@@ -108,9 +120,60 @@ const translations: Record<string, Record<Locale, string>> = {
   'performance.subtitle': { zh: '渲染和动画设置。', en: 'Rendering and animation settings.' },
   'performance.gpuAcceleration': { zh: 'GPU 加速', en: 'GPU Acceleration' },
   'performance.gpuDesc': { zh: '使用硬件加速获得更流畅的动画', en: 'Use hardware acceleration for smoother animations' },
+  'performance.reducedFx': { zh: '减少高性能视觉效果', en: 'Reduce High-Cost Visual Effects' },
+  'performance.reducedFxDesc': {
+    zh: '关闭开销较大的合成器滤镜，换成纯色面板。老旧设备上动画会更流畅、文字更清晰。',
+    en: 'Disable expensive compositor filters, fall back to opaque panels. Smoother animations and crisper text on older devices.',
+  },
+  'performance.reducedFx.item.glass': {
+    zh: '玻璃面板模糊（backdrop-filter）→ 纯色背景',
+    en: 'Glass panel blur (backdrop-filter) → solid surfaces',
+  },
+  'performance.reducedFx.item.wallpaperBlur': {
+    zh: '壁纸聚焦模糊 → 轻微暗化',
+    en: 'Wallpaper focus blur → subtle darken only',
+  },
+  'performance.reducedFx.item.glow': {
+    zh: '桌面环境光斑（140px 模糊大圆）→ 隐藏',
+    en: 'Ambient glow orbs (140px-blur circles) → hidden',
+  },
+  'performance.reducedFx.item.vignette': {
+    zh: '壁纸暗角径向渐变 → 关闭',
+    en: 'Wallpaper vignette radial gradient → off',
+  },
+  'performance.reducedFx.item.shadow': {
+    zh: '大尺寸阴影 → 轻量阴影',
+    en: 'Large drop shadows → lightweight shadows',
+  },
 
   // Settings — About
+  'about.extensionDownload': { zh: '下载扩展 (.zip)', en: 'Download Extension (.zip)' },
   'about.documentation': { zh: '文档与帮助', en: 'Documentation' },
+
+  // Settings — Browser Extension
+  'extension.title': { zh: '浏览器扩展', en: 'Browser Extension' },
+  'extension.subtitle': { zh: '一键让每次打开浏览器都回到 Forsion。', en: 'One click to make every browser launch return to Forsion.' },
+  'extension.heroDesc': {
+    zh: 'Forsion Launcher 会在浏览器启动和新建标签页时默认打开 forsion.net，让你始终从自己的个性化桌面开始。',
+    en: 'Forsion Launcher opens forsion.net automatically on browser startup and every new tab, so you always start from your personalized desktop.',
+  },
+  'extension.compat': { zh: '支持 Chrome · Edge（Manifest V3）', en: 'Works with Chrome · Edge (Manifest V3)' },
+  'extension.fullGuide': { zh: '查看完整教程', en: 'View Full Guide' },
+  'extension.features': { zh: '核心功能', en: 'Features' },
+  'extension.feature1': { zh: '浏览器启动时自动打开 forsion.net', en: 'Opens forsion.net automatically when your browser starts' },
+  'extension.feature2': { zh: '新建标签页默认跳转 forsion.net', en: 'Every new tab lands on forsion.net' },
+  'extension.feature3': { zh: '工具栏图标一键直达', en: 'One-click toolbar icon to open Forsion anytime' },
+  'extension.installSteps': { zh: '安装步骤', en: 'Installation' },
+  'extension.step1': { zh: '点击上方「下载扩展」按钮，将 forsion-launcher.zip 解压到一个不会被删除的文件夹', en: 'Click "Download Extension" above and unzip forsion-launcher.zip into a folder you won\'t delete' },
+  'extension.step2': { zh: '地址栏输入 chrome://extensions（Edge 用 edge://extensions）打开扩展管理页', en: 'Open chrome://extensions (or edge://extensions) in the address bar' },
+  'extension.step3': { zh: '打开右上角的「开发者模式」开关', en: 'Enable "Developer mode" in the top-right corner' },
+  'extension.step4': { zh: '点击「加载已解压的扩展程序」，选择第 1 步解压后的文件夹', en: 'Click "Load unpacked" and select the folder from step 1' },
+  'extension.step5': { zh: '建议把工具栏里的 Forsion 图标「固定」，随时一键打开', en: 'Pin the Forsion icon in the toolbar for quick access' },
+  'extension.noteTitle': { zh: '提示：', en: 'Note: ' },
+  'extension.noteBody': {
+    zh: '解压后的文件夹不能删除或移动——Chrome / Edge 是直接从该路径加载扩展的。如需停用扩展，在扩展管理页关闭开关即可，无需卸载。',
+    en: 'Don\'t delete or move the unzipped folder — Chrome / Edge loads the extension directly from that path. To disable temporarily, just toggle it off in the extensions page; no uninstall needed.',
+  },
   'about.termsOfService': { zh: '服务条款', en: 'Terms of Service' },
   'about.privacyPolicy': { zh: '隐私政策', en: 'Privacy Policy' },
   'about.deskGuide': { zh: 'Forsion Desk 使用指南', en: 'Forsion Desk Guide' },

@@ -1,6 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+const WINDOW_SPRING = { type: 'spring' as const, stiffness: 220, damping: 26, mass: 0.9 };
+const WINDOW_INITIAL = { scale: 0.92, opacity: 0, y: 16 };
+const WINDOW_ANIMATE = { scale: 1, opacity: 1, y: 0 };
+const WINDOW_EXIT = { scale: 0.94, opacity: 0, y: 12 };
+const GPU_STYLE = { willChange: 'transform, opacity' as const, transform: 'translateZ(0)' };
 import { X } from 'lucide-react';
 import { WindowState, AppId, Theme, ForsionApp } from '../types';
 import SettingsStorageService from '../services/settingsStorageService';
@@ -56,19 +62,13 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
       <AnimatePresence>
-        {windows.filter(w => !w.isMinimized).map((win) => {
-          const gpuStyle = gpuAcceleration ? {
-            willChange: 'transform, opacity' as const,
-            transform: 'translateZ(0)',
-          } : {};
-          
-          return (
+        {windows.filter(w => !w.isMinimized).map((win) => (
             <motion.div
               key={win.id}
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              initial={WINDOW_INITIAL}
+              animate={WINDOW_ANIMATE}
+              exit={WINDOW_EXIT}
+              transition={WINDOW_SPRING}
               onMouseDown={() => onFocus(win.id)}
               className="absolute pointer-events-auto rounded-2xl glass-dark shadow-[0_20px_50px_rgba(0,0,0,0.15)] flex flex-col overflow-hidden"
               data-gpu-accelerated={gpuAcceleration ? 'true' : undefined}
@@ -78,7 +78,7 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
                 height: win.height,
                 left: win.x,
                 top: win.y,
-                ...gpuStyle,
+                ...(gpuAcceleration ? GPU_STYLE : null),
               }}
             >
               {/* Title Bar */}
@@ -105,8 +105,7 @@ export const WindowManager: React.FC<WindowManagerProps> = ({
                 )}
               </div>
             </motion.div>
-          );
-        })}
+        ))}
       </AnimatePresence>
     </div>
   );

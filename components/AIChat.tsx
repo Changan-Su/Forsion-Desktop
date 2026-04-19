@@ -1,6 +1,15 @@
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// Shared motion transitions — exported as module-level constants so every
+// render of AIChat reuses the same reference (framer-motion treats new objects
+// as new transitions and re-schedules animations).
+const CHAT_SPRING = { type: 'spring' as const, stiffness: 220, damping: 26, mass: 0.9 };
+const DROPDOWN_SPRING = { type: 'spring' as const, stiffness: 280, damping: 26 };
+// Staggered list items use a short tween (not spring) — keeps the "fan in"
+// feel without the multi-frame overshoot a spring would introduce per item.
+const LIST_ITEM_TWEEN = { duration: 0.16, ease: [0.22, 1, 0.36, 1] as const };
 import { Send, Sparkles, Command, ChevronDown, MessageSquare, Trash2, Plus, Search, Settings, Clock, X } from 'lucide-react';
 import { ChatMessage, Session, AIModel } from '../types';
 import ChatService from '../services/chatService';
@@ -8,34 +17,13 @@ import ModelService from '../services/modelService';
 import AuthService from '../services/authService';
 import SettingsStorageService from '../services/settingsStorageService';
 import Avatar from './Avatar';
-import { SEARCH_ENGINES, DEFAULT_SEARCH_ENGINE } from '../constants';
+import { SEARCH_ENGINES } from '../constants';
 import type { SearchEngine } from '../constants';
 import { fetchSuggestions } from '../services/searchService';
 import { useI18n } from '../services/i18nService';
+import { EngineIcon } from './EngineIcon';
+import { SEARCH_ENGINE_KEY, getPreferredEngineId } from '../services/searchEngineService';
 
-// --- Search engine SVG icons (Simple Icons official paths, single-color currentColor) ---
-const EngineIcon: React.FC<{ engineId: string; size?: number }> = ({ engineId, size = 18 }) => {
-  const s = size;
-  const f = "currentColor";
-  switch (engineId) {
-    case 'baidu':
-      return <svg width={s} height={s} viewBox="0 0 24 24"><path fill={f} d="M9.154 0C7.71 0 6.54 1.658 6.54 3.707c0 2.051 1.171 3.71 2.615 3.71 1.446 0 2.614-1.659 2.614-3.71C11.768 1.658 10.6 0 9.154 0zm7.025.594C14.86.58 13.347 2.589 13.2 3.927c-.187 1.745.25 3.487 2.179 3.735 1.933.25 3.175-1.806 3.422-3.364.252-1.555-.995-3.364-2.362-3.674a1.218 1.218 0 0 0-.261-.03zM3.582 5.535a2.811 2.811 0 0 0-.156.008c-2.118.19-2.428 3.24-2.428 3.24-.287 1.41.686 4.425 3.297 3.864 2.617-.561 2.262-3.68 2.183-4.362-.125-1.018-1.292-2.773-2.896-2.75zm16.534 1.753c-2.308 0-2.617 2.119-2.617 3.616 0 1.43.121 3.425 2.988 3.362 2.867-.063 2.553-3.238 2.553-3.988 0-.745-.62-2.99-2.924-2.99zM12 11.632c-1.424.014-2.708.925-3.323 1.947-1.118 1.868-2.863 3.05-3.112 3.363-.25.309-3.61 2.116-2.864 5.42.746 3.301 3.365 3.237 3.365 3.237s1.93.19 4.171-.31c2.24-.495 4.17.123 4.17.123s5.233 1.748 6.665-1.616c1.43-3.364-.808-5.109-.808-5.109s-2.99-2.306-4.736-4.798c-1.072-1.665-2.348-2.268-3.528-2.257z"/></svg>;
-    case 'bing':
-      return <svg width={s} height={s} viewBox="0 0 24 24"><path fill={f} d="M20.176 15.406a6.48 6.48 0 01-1.736 4.414c1.338-1.47.803-3.869-1.003-4.635-.862-.305-2.488-.85-3.367-1.158a1.834 1.834 0 01-.932-.818c-.381-.975-1.163-2.968-1.548-3.948-.095-.285-.31-.625-.265-.938.046-.598.724-1.003 1.276-.754l3.682 1.888c.621.292 1.305.692 1.796 1.172a6.486 6.486 0 012.097 4.777zm-1.44 1.888c-.264-1.194-1.135-1.744-2.216-2.028-1.527.902-4.853 2.878-6.952 4.13-1.103.68-2.13 1.35-2.919 1.242a2.866 2.866 0 01-2.77-2.325c-.012-.048-.008-.03-.001.01a6.4 6.4 0 00.947 2.653 6.498 6.498 0 005.486 3.022c1.908.062 3.536-1.153 5.099-2.096.292-.188.804-.496 1.332-.831l1.423-1.51c.553-.577.764-1.426.571-2.267zm-12.04 2.97c.422 0 .822-.1 1.173-.29.355-.215.964-.579 1.7-1.018L9.57 4.502c0-.99-.497-1.864-1.257-2.382-.08-.059-2.91-1.901-2.99-1.956-.605-.432-1.523.045-1.5.797v14.887l.417 2.36a2.488 2.488 0 002.455 2.056z"/></svg>;
-    case 'google':
-      return <svg width={s} height={s} viewBox="0 0 24 24"><path fill={f} d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/></svg>;
-    case 'yandex':
-      return <svg width={s} height={s} viewBox="0 0 24 24"><path fill={f} d="M1.902 16.349v-2.85L0 8.398h.957l1.4 3.938L3.97 7.573h.877l-2.069 5.96v2.815h-.876zm5.638 0h-.734c-.033-.125-.065-.3-.075-.447h-.057c-.246.313-.559.525-1.051.525-.798 0-1.344-.601-1.344-1.704 0-1.2.611-1.956 2.18-1.956h.123v-.333c0-.735-.246-1.048-.735-1.048-.445 0-.824.234-1.112.49l-.167-.766c.256-.213.766-.447 1.336-.447.99 0 1.533.424 1.533 1.781v2.636c0 .534.055 1.002.1 1.267l.003.002zm-.955-2.925h-.101c-1.08 0-1.313.479-1.313 1.2 0 .645.21 1.067.655 1.067.3 0 .601-.2.757-.445l.002-1.822zm2.802 2.925h-.869v-5.621h.869v.491h.056c.154-.21.578-.556 1.101-.556.732 0 1.121.412 1.121 1.268v4.418h-.878v-4.34c0-.423-.188-.57-.524-.57-.364 0-.675.279-.877.559v4.35l.001.001zm3.135-2.592c0-2.08.78-3.094 1.901-3.094.268 0 .545.09.713.211V8.398h.869v7.95h-.645l-.069-.445h-.055c-.245.312-.556.521-1.013.521-1.1 0-1.699-.933-1.699-2.667h-.002zm2.615-2.115c-.176-.176-.366-.266-.656-.266-.7 0-1.035 1.057-1.035 2.202 0 1.313.246 2.114.881 2.114.436 0 .666-.213.811-.435v-3.615zm3.604 4.785c-1.155 0-1.869-.924-1.869-2.647 0-1.804.501-3.116 1.69-3.116.935 0 1.544.701 1.544 2.604v.478h-2.331c0 1.268.355 1.935 1.045 1.935.489 0 .847-.222 1.068-.378l.2.667c-.354.278-.79.456-1.345.456l-.002.001zm-.957-3.394h1.435c0-.957-.155-1.657-.656-1.657-.532 0-.72.657-.78 1.657h.001zm6.095-2.292l-1.045 2.625L24 16.349h-.899l-.87-2.314-.844 2.313h-.855l1.166-2.904-1.057-2.702h.901l.727 2.035.765-2.036h.846z"/></svg>;
-    case 'duckduckgo':
-      return <svg width={s} height={s} viewBox="0 0 24 24"><path fill={f} d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 23C5.925 23 1 18.074 1 12S5.926 1 12 1s11 4.925 11 11-4.925 11-11 11zm10.219-11c0 4.805-3.317 8.833-7.786 9.925-.27-.521-.53-1.017-.749-1.438.645.249 1.93.718 2.208.615.376-.144.282-3.149-.14-3.245-.338-.075-1.632.837-2.141 1.209l.034.156c.078.397.144.993.03 1.247-.001.004-.002.01-.004.013a.218.218 0 0 1-.068.088c-.284.188-1.081.284-1.503.188a.516.516 0 0 1-.064-.02c-.694.396-2.01 1.109-2.25.971-.329-.188-.377-2.676-.329-3.288.035-.46 1.653.286 2.442.679.174-.163.602-.272.98-.31-.57-1.389-.99-2.977-.733-4.105 0 .002.002.002.002.002.356.248 2.73 1.05 3.91 1.027 1.18-.024 3.114-.743 2.903-1.323-.212-.58-2.135.51-4.142.324-1.486-.138-1.748-.804-1.42-1.29.414-.611 1.168.116 2.411-.256 1.245-.371 2.987-1.035 3.632-1.397 1.494-.833-.625-1.177-1.125-.947-.474.22-2.123.637-2.889.82.428-1.516-.603-4.149-1.757-5.3-.376-.376-.951-.612-1.603-.736-.25-.344-.654-.671-1.225-.977a5.772 5.772 0 0 0-3.595-.584l-.024.004-.034.004.004.002c-.148.028-.237.08-.357.098.148.016.705.276 1.057.418-.174.068-.412.108-.596.184a.828.828 0 0 0-.204.056c-.173.08-.303.375-.3.515.84-.086 2.082-.026 2.991.246-.644.09-1.235.258-1.661.482-.016.008-.03.018-.048.028-.054.02-.106.042-.152.066-1.367.72-1.971 2.405-1.611 4.424.323 1.824 1.665 8.088 2.29 11.064-3.973-1.4-6.822-5.186-6.822-9.639C1.781 6.356 6.356 1.781 12 1.781S22.219 6.356 22.219 12zM9.095 9.581a.758.758 0 1 0 0 1.516.758.758 0 0 0 0-1.516zm.338.702a.196.196 0 1 1 0-.392.196.196 0 0 1 0 .392zm4.724-1.043a.65.65 0 1 0 0 1.299.65.65 0 0 0 0-1.3zm.29.601a.168.168 0 1 1 0-.336.168.168 0 0 1 0 .336zM9.313 8.146s-.571-.26-1.125.09c-.554.348-.534.704-.534.704s-.294-.656.49-.978c.786-.32 1.17.184 1.17.184zm5.236-.052s-.41-.234-.73-.23c-.654.008-.831.296-.831.296s.11-.688.945-.55a.84.84 0 0 1 .616.484z"/></svg>;
-    case 'ai':
-      return <Sparkles size={s} />;
-    default:
-      return <Sparkles size={s} />;
-  }
-};
-
-const SEARCH_ENGINE_KEY = 'forsion_desktop_search_engine';
 const SEARCH_HISTORY_KEY = 'forsion_desktop_search_history';
 const SEARCH_HISTORY_MAX = 10;
 
@@ -90,10 +78,8 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, hasAppOpen = fa
   const [gpuAcceleration, setGpuAcceleration] = useState<boolean>(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Search engine state
-  const [searchMode, setSearchMode] = useState<string>(() => {
-    return localStorage.getItem(SEARCH_ENGINE_KEY) || DEFAULT_SEARCH_ENGINE;
-  });
+  // Search engine state — initialized from shared helper so PC and mobile agree
+  const [searchMode, setSearchMode] = useState<string>(() => getPreferredEngineId());
   const [showEngineDropdown, setShowEngineDropdown] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selectedSuggestionIdx, setSelectedSuggestionIdx] = useState(-1);
@@ -487,10 +473,10 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, hasAppOpen = fa
     return () => { window.removeEventListener('resize', updatePos); clearInterval(interval); };
   }, [isOpen, hasAppOpen, layoutConfig]);
 
-  const gpuStyle = gpuAcceleration ? {
-    willChange: 'transform, opacity' as const,
-    transform: 'translateZ(0)',
-  } : {};
+  const gpuStyle = useMemo<React.CSSProperties>(
+    () => (gpuAcceleration ? { willChange: 'transform, opacity', transform: 'translateZ(0)' } : {}),
+    [gpuAcceleration]
+  );
 
   return (
     <div className="fixed inset-0 z-[10001] flex items-center justify-center pointer-events-none">
@@ -504,7 +490,7 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, hasAppOpen = fa
           width: layoutConfig.width,
           scale: hasAppOpen && !isOpen ? 0.9 : 1
         }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        transition={CHAT_SPRING}
         className="w-full max-w-[680px] rounded-[32px] flex flex-col overflow-hidden shadow-[0_32px_80px_-20px_rgba(0,0,0,0.2)] pointer-events-auto glass-dark text-surface-text"
         data-gpu-accelerated={gpuAcceleration ? 'true' : undefined}
         style={gpuStyle}
@@ -796,7 +782,7 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, hasAppOpen = fa
             initial={{ opacity: 0, y: 10, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.96 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+            transition={DROPDOWN_SPRING}
             className="glass-dark rounded-2xl shadow-[0_-16px_48px_-12px_rgba(0,0,0,0.25)] p-2 min-w-[220px] pointer-events-auto text-surface-text"
             style={{
               position: 'fixed',
@@ -811,7 +797,7 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, hasAppOpen = fa
                 <motion.button
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.03 }}
+                  transition={{ ...LIST_ITEM_TWEEN, delay: idx * 0.025 }}
                   onClick={() => switchEngine(engine.id)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
                     searchMode === engine.id
@@ -847,7 +833,7 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, hasAppOpen = fa
             initial={{ opacity: 0, y: 10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.98 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 26 }}
+            transition={DROPDOWN_SPRING}
             className="glass-dark rounded-2xl shadow-[0_-16px_48px_-12px_rgba(0,0,0,0.25)] p-2 max-h-[400px] overflow-y-auto scrollbar-hide pointer-events-auto text-surface-text"
             style={{
               position: 'fixed',
@@ -862,7 +848,7 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, hasAppOpen = fa
                 key={idx}
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.025, type: 'spring', stiffness: 500, damping: 30 }}
+                transition={{ ...LIST_ITEM_TWEEN, delay: idx * 0.02 }}
                 onClick={() => {
                   performSearch(suggestion);
                   setInput('');
@@ -893,7 +879,7 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, hasAppOpen = fa
             initial={{ opacity: 0, y: 10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.98 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 26 }}
+            transition={DROPDOWN_SPRING}
             className="glass-dark rounded-2xl shadow-[0_-16px_48px_-12px_rgba(0,0,0,0.25)] p-2 max-h-[400px] overflow-y-auto scrollbar-hide pointer-events-auto text-surface-text"
             style={{
               position: 'fixed',
@@ -917,7 +903,7 @@ export const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, hasAppOpen = fa
                 key={item}
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.02, type: 'spring', stiffness: 500, damping: 30 }}
+                transition={{ ...LIST_ITEM_TWEEN, delay: idx * 0.02 }}
                 className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors hover:bg-surface-text/10 text-surface-text/80 group"
               >
                 <Clock size={14} className="opacity-30 flex-shrink-0" />

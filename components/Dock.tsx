@@ -1,5 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+const DOCK_HOVER = { scale: 1.2, y: -10 };
+const DOCK_TAP = { scale: 0.92 };
+// Punchy hover spring：高 stiffness + 低 mass 让图标几乎下一帧就开始响应，
+// damping 28 保证不过冲。上一版 (350/22) 虽然是 spring，但叠加了 CSS
+// transition-all duration-300 导致 transform 被两套系统竞争，手感迟滞。
+const DOCK_HOVER_TRANSITION = { type: 'spring' as const, stiffness: 520, damping: 28, mass: 0.5 };
 import { createPortal } from 'react-dom';
 import { Package, Globe } from 'lucide-react';
 import {
@@ -72,12 +79,12 @@ const ForsionAppIcon: React.FC<{ icon?: string; name: string; size?: number }> =
 interface DraggableDockItemProps {
   app: DockApp;
   isActive: boolean;
-  onLaunch: () => void;
+  onLaunch: (app: DockApp) => void;
   gpuStyle: React.CSSProperties;
   gpuAcceleration: boolean;
 }
 
-const DraggableDockItem: React.FC<DraggableDockItemProps> = ({
+const DraggableDockItemBase: React.FC<DraggableDockItemProps> = ({
   app,
   isActive,
   onLaunch,
@@ -94,14 +101,22 @@ const DraggableDockItem: React.FC<DraggableDockItemProps> = ({
     isDragging,
   } = useSortable({ id: app.id });
 
-  const style = {
+  const style = useMemo(() => ({
     transform: CSS.Transform.toString(transform),
     transition: isDragging ? 'none' : transition,
-  };
+  }), [transform, transition, isDragging]);
+
+  const buttonStyle = useMemo(() => (
+    app.isForsionApp || app.isBookmark || !app.color
+      ? { ...gpuStyle, background: 'var(--icon-surface)', backdropFilter: 'var(--backdrop-glass)', WebkitBackdropFilter: 'var(--backdrop-glass)', border: '1px solid var(--ui-border-sub)' }
+      : gpuStyle
+  ), [app.isForsionApp, app.isBookmark, app.color, gpuStyle]);
+
+  const hoverAnim = isDragging ? undefined : DOCK_HOVER;
 
   const handleClick = (e: React.MouseEvent) => {
     if (!isDragging && !transform) {
-      onLaunch();
+      onLaunch(app);
     }
   };
 
@@ -114,16 +129,17 @@ const DraggableDockItem: React.FC<DraggableDockItemProps> = ({
       className="relative group touch-none"
     >
       <motion.button
-        whileHover={!isDragging ? { scale: 1.2, y: -10 } : {}}
-        whileTap={{ scale: 0.9 }}
+        whileHover={hoverAnim}
+        whileTap={DOCK_TAP}
+        transition={DOCK_HOVER_TRANSITION}
         onClick={handleClick}
-        className={`w-12 h-12 rounded-xl ${app.color} flex items-center justify-center shadow-lg relative overflow-hidden transition-all duration-300 ${
+        className={`w-12 h-12 rounded-xl ${app.color} flex items-center justify-center shadow-lg relative overflow-hidden transition-colors duration-200 ${
           app.isForsionApp || app.isBookmark || !app.color ? 'text-surface-text' : 'text-white'
         } ${isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-pointer'}`}
         data-gpu-accelerated={gpuAcceleration ? 'true' : undefined}
-        style={app.isForsionApp || app.isBookmark || !app.color ? { ...gpuStyle, background: 'var(--icon-surface)', backdropFilter: 'var(--backdrop-glass)', WebkitBackdropFilter: 'var(--backdrop-glass)', border: '1px solid var(--ui-border-sub)' } : gpuStyle}
+        style={buttonStyle}
       >
-        {app.color && <div className="absolute inset-0 bg-white/10 group-hover:bg-transparent transition-colors" />}
+        {app.color && <div className="absolute inset-0 bg-white/10 group-hover:opacity-0 transition-opacity duration-150" />}
         <div className="w-6 h-6 flex items-center justify-center">
           {app.isForsionApp ? (
             <ForsionAppIcon icon={app.icon} name={app.name} size={24} />
@@ -154,6 +170,10 @@ const DraggableDockItem: React.FC<DraggableDockItemProps> = ({
     </div>
   );
 };
+
+// Memo 包裹：避免每次 Dock 父组件 state 变化（如 activeId、activeApps、pinnedVersion）
+// 都让整个 dock 图标列表重渲染。props 里的函数引用通过父级 useMemo 稳定。
+const DraggableDockItem = React.memo(DraggableDockItemBase);
 
 export const Dock: React.FC<DockProps> = ({ onLaunch, activeApps, onLaunchForsionApp }) => {
   const [gpuAcceleration, setGpuAcceleration] = useState<boolean>(true);
@@ -286,10 +306,11 @@ export const Dock: React.FC<DockProps> = ({ onLaunch, activeApps, onLaunchForsio
     })
   );
 
-  const gpuStyle = gpuAcceleration ? {
-    willChange: 'transform' as const,
-    transform: 'translateZ(0)',
-  } : {};
+  // Memoize 防止每次渲染都产出新引用，触发 DraggableDockItem 的 React.memo 失效
+  const gpuStyle = useMemo<React.CSSProperties>(
+    () => (gpuAcceleration ? { willChange: 'transform', transform: 'translateZ(0)' } : {}),
+    [gpuAcceleration]
+  );
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -313,7 +334,7 @@ export const Dock: React.FC<DockProps> = ({ onLaunch, activeApps, onLaunchForsio
     setActiveId(null);
   };
 
-  const handleLaunch = (app: DockApp) => {
+  const handleLaunch = useCallback((app: DockApp) => {
     if (app.isBookmark && app.url) {
       window.open(app.url, '_blank', 'noopener,noreferrer');
       return;
@@ -332,7 +353,7 @@ export const Dock: React.FC<DockProps> = ({ onLaunch, activeApps, onLaunchForsio
     } else {
       onLaunch(app.id as AppId);
     }
-  };
+  }, [forsionApps, onLaunch, onLaunchForsionApp]);
 
   const activeApp = activeId ? dockApps.find(app => app.id === activeId) : null;
 
@@ -345,9 +366,8 @@ export const Dock: React.FC<DockProps> = ({ onLaunch, activeApps, onLaunchForsio
         onDragEnd={handleDragEnd}
       >
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[10000]">
-          <motion.div 
-            layout
-            className="glass-dark px-3 py-2 rounded-2xl flex items-end space-x-2 shadow-2xl text-surface-text"
+          <motion.div
+            className="glass-dark dock-bar px-3 py-2 rounded-2xl flex items-end space-x-2 shadow-2xl text-surface-text"
             data-gpu-accelerated={gpuAcceleration ? 'true' : undefined}
             style={gpuStyle}
           >
@@ -360,7 +380,7 @@ export const Dock: React.FC<DockProps> = ({ onLaunch, activeApps, onLaunchForsio
                   key={app.id}
                   app={app}
                   isActive={activeApps.includes(app.id as AppId)}
-                  onLaunch={() => handleLaunch(app)}
+                  onLaunch={handleLaunch}
                   gpuStyle={gpuStyle}
                   gpuAcceleration={gpuAcceleration}
                 />

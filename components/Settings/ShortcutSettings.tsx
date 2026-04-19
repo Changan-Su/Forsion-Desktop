@@ -11,9 +11,11 @@ export interface ShortcutBindings {
   'click-title': ShortcutAction;
 }
 
+// 默认：右键空白区域和单击标题都打开启动台（抽屉）。
+// 仍允许用户在设置里改为 'none' / 'focus-search'。
 const DEFAULT_BINDINGS: ShortcutBindings = {
-  'right-click-empty': 'none',
-  'click-title': 'none',
+  'right-click-empty': 'open-launchpad',
+  'click-title': 'open-launchpad',
 };
 
 export function getShortcutBindings(): ShortcutBindings {

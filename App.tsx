@@ -232,8 +232,19 @@ const App: React.FC = () => {
       setIsSearchFocused(e.detail.focused);
     };
 
+    // Reduced visual fx — cut expensive filters / large blurs for low-end devices
+    const applyReducedFx = (enabled: boolean) => {
+      if (enabled) document.body.classList.add('reduced-fx');
+      else document.body.classList.remove('reduced-fx');
+    };
+    applyReducedFx(SettingsStorageService.getReducedVisualFx());
+    const handleReducedFxChange = (e: CustomEvent) => {
+      applyReducedFx(!!e.detail?.enabled);
+    };
+
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('gpu-acceleration-changed', handleGPUChange as EventListener);
+    window.addEventListener('reduced-visual-fx-changed', handleReducedFxChange as EventListener);
     window.addEventListener('wallpaper-overlay-changed', handleOverlayChange as EventListener);
     window.addEventListener('search-focus-changed', handleSearchFocus as EventListener);
     const handleShortcutChange = (e: CustomEvent) => {
@@ -243,6 +254,7 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('gpu-acceleration-changed', handleGPUChange as EventListener);
+      window.removeEventListener('reduced-visual-fx-changed', handleReducedFxChange as EventListener);
       window.removeEventListener('wallpaper-overlay-changed', handleOverlayChange as EventListener);
       window.removeEventListener('search-focus-changed', handleSearchFocus as EventListener);
       window.removeEventListener('shortcut-bindings-changed', handleShortcutChange as EventListener);
@@ -501,9 +513,9 @@ const App: React.FC = () => {
     <div className="relative w-screen h-screen overflow-hidden transition-colors duration-500" onContextMenu={handleDesktopContextMenu}>
       <div className={`absolute inset-0 z-0 bg-desktop-surface${focusBlur && isDesktopFocused ? ' wallpaper-focus-blur' : ''}`}>
         <div className="brush-stroke" />
-        <div className="absolute top-[5%] right-[10%] w-[60%] h-[40%] bg-white opacity-[0.1] blur-[140px] rounded-full" />
-        <div className="absolute top-[40%] left-[5%] w-[50%] h-[40%] bg-white opacity-[0.05] blur-[110px] rounded-full" />
-        <div className="absolute bottom-[0%] right-[-5%] w-[70%] h-[50%] bg-black opacity-[0.1] blur-[120px] rounded-full" />
+        <div className="ambient-glow absolute top-[5%] right-[10%] w-[60%] h-[40%] bg-white opacity-[0.1] blur-[140px] rounded-full" />
+        <div className="ambient-glow absolute top-[40%] left-[5%] w-[50%] h-[40%] bg-white opacity-[0.05] blur-[110px] rounded-full" />
+        <div className="ambient-glow absolute bottom-[0%] right-[-5%] w-[70%] h-[50%] bg-black opacity-[0.1] blur-[120px] rounded-full" />
       </div>
       {/* Background overlay — vignetting & focus dimming */}
       <div className={`bg-overlay${vignetting ? ' vignetting' : ''}${vignetting || (focusBlur && isDesktopFocused) ? ' show' : ''}${focusBlur && isDesktopFocused ? ' focus-lite' : ''}`} />
