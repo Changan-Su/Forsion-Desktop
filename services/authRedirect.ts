@@ -5,6 +5,7 @@
 
 const AUTH_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/auth`;
 const TOKEN_KEY = 'auth_token';
+const PROJECT_SOURCE = import.meta.env.VITE_PROJECT_SOURCE || 'desktop';
 
 /**
  * 统一登录检测
@@ -59,7 +60,10 @@ export async function validateToken(apiBaseUrl: string): Promise<boolean> {
 
   try {
     const response = await fetch(`${apiBaseUrl}/api/auth/me`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'X-Project-Source': PROJECT_SOURCE,
+      }
     });
     if (response.ok) return true;
     localStorage.removeItem(TOKEN_KEY);
@@ -85,7 +89,8 @@ export async function validateAndRedirect(apiBaseUrl: string, appName?: string):
   try {
     const response = await fetch(`${apiBaseUrl}/api/auth/me`, {
       headers: {
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        'X-Project-Source': PROJECT_SOURCE,
       }
     });
 
